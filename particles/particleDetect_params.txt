@@ -1,0 +1,13 @@
+topDir	/eno/cllee3/matlab/annularPeGS/	
+imgReg	*.jpg	
+frameIdInd	16	
+cen	2764	2764
+rad	1405	2652
+R_overlap	15	
+dtol	25	
+radiusRange	40	60
+boundaryType	annulus	
+sigma	50	
+sensitivity	0.945	
+lastimagename	100Hz_5spf_Img0069warped.tif	
+time	16-Sep-2024 13:36:40	
