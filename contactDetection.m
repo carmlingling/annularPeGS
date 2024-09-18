@@ -67,13 +67,11 @@ end
 
 
 
-
-
 disp([p.topDir, 'warpedimg/', p.imgReg]) %print the filename
-files = dir([ p.topDir, 'warpedimg/', p.imgReg]); %images
+files = dir([ p.topDir, 'warpedimg/', '*.tif']); %images
 
-centersfile = dir([p.topDir, 'particles/','*_centers.txt']);
-files
+centersfile = dir([p.topDir, 'particle_positions.txt']);
+centersdata = readmatrix(fullfile(centersfile.folder, centersfile.name));
 
 %% setting up mask
 mask = abs(-f.CR:f.CR);
@@ -124,9 +122,8 @@ for imgnumb = 1:size(files,1)
         Gimgd = imadjust(Gimg,f.imadjust_limits); %regular contrast
     
         Gimgfine = imadjust(Gimg, f.fineimadjust_limits); %super boosted contrast
-        frame = str2double(files(imgnumb).name(p.frameIdInd:p.frameIdInd+3));
-        disp(files(imgnumb).name(p.frameIdInd:p.frameIdInd+3))
-        disp(frame)
+        %frame = str2double(files(imgnumb).name(p.frameIdInd:p.frameIdInd+3));
+        
 
     end
    
@@ -140,12 +137,13 @@ for imgnumb = 1:size(files,1)
 
     end
     
-    %frame = str2double(files(imgnumb).name(frameidind:frameidind+3))
-
+    frame = str2double(files(imgnumb).name(p.frameIdInd:p.frameIdInd+3))
+    
 
     %% initialize data structure
-    pData = readmatrix([p.topDir, 'particles/',centersfile(imgnumb).name]); %,"NumHeaderLines", 1); %Read Position data from centers file
-    
+    %pData = readmatrix([p.topDir, 'adjacencyMatrix.m',centersfile(imgnumb).name]); %,"NumHeaderLines", 1); %Read Position data from centers file
+    %ind = centersdata(:,1)==frame
+    pData = centersdata(centersdata(:,1)==frame,:)
    
     if ~isempty(pData)
 
@@ -153,18 +151,18 @@ for imgnumb = 1:size(files,1)
 
         particle(1:N) = struct('id',0,'x',0,'y',0,'r',0,'rm',0,'color','','fsigma',0,'z',0,'f',0,'g2',0,'forces',[],'betas',[],'alphas',[],'neighbours',[],'contactG2s',[],'forceImage',[],  'edge', 0);
         for n = 1:N %Bookkeeping from centers-tracked
-            particle(n).id= n;
-            particle(n).x = pData(n,1);
-            particle(n).y = pData(n,2);
-            particle(n).r = round(pData(n,3));
-            particle(n).edge = pData(n, 4);
+            particle(n).id= pData(n,2);
+            particle(n).x = pData(n,3);
+            particle(n).y = pData(n,4);
+            particle(n).r = round(pData(n,5));
+            particle(n).edge = pData(n, 6);
             particle(n).rm = particle(n).r*f.metersperpixel;
             particle(n).fsigma = f.fsigma;
         end
 
         if f.figverbose
             imshow(Gimg);
-            viscircles([pData(:,1),pData(:,2)],pData(:,3));
+            viscircles([pData(:,3),pData(:,4)],pData(:,5));
             hold on;
         end
 
@@ -207,9 +205,9 @@ for imgnumb = 1:size(files,1)
         end
         %% look at neighbours
 
-        xmat = pData(:,1);
-        ymat = pData(:,2);
-        rmat = pData(:,3);
+        xmat = pData(:,3);
+        ymat = pData(:,4);
+        rmat = pData(:,5);
 
         rmats = rmat; %Saves our radius matrix for later
 
@@ -349,7 +347,7 @@ for i = 1:length(fields)
     p.(fields{i}) = f.(fields{i})
 end
 %p = rmfield(p,'radiusRange');
-p.lastimagename=files(imgnumb).name;
+%p.lastimagename=files(imgnumb).name;
 p.time = datetime("now");
 fields = fieldnames(p);
 C=struct2cell(p);

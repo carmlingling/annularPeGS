@@ -23,7 +23,7 @@
 % images are stored, and it will write the output to that same
 % directory in a subdirectory 'output' using all .jpg files in that directory
 
-function PeGSModular(FileParams, particleDetectParams, cdParams, dsParams, verbose)
+function PeGSModular(FileParams, particleDetectParams,particleTrackParams, cdParams, dsParams, verbose)
 if ~exist('FileParams')
     FileParams=struct;
 end
@@ -46,14 +46,14 @@ end
 
 %% set parameters for particleDetect() before running
 
-preprocess(FileParams, particleDetectParams, verbose)
+%preprocess(FileParams, particleDetectParams, verbose)
 
-particleDetect(FileParams, particleDetectParams, verbose);
+%particleDetect(FileParams, particleDetectParams, verbose);
 
-
+%particleTrack(FileParams, particleTrackParams, verbose);
 %% set parameters for contactDetection() before running
 %cdParams = struct;
-%contactDetection(FileParams, cdParams, verbose);
+contactDetection(FileParams, cdParams, verbose);
 % if verbose 
 %         disp('done with contactDetection()');
 % end

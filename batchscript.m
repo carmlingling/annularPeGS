@@ -1,11 +1,13 @@
 %batch scripting
 
 
-FileParams.topDir = ['/eno/cllee3/matlab/annularPeGS', '/']; % where the images are stored
+FileParams.topDir = ['./']; % where the images are stored
 FileParams.imgReg = '*.jpg'; %image format and regex
+FileParams.imageDir = 'warpedimg/'
+FileParams.particleDir = 'particles/'
 % several Step*.jpg files are present on GitHub as sample data
-FileParams.frameIdInd = 16;
-
+FileParams.frameIdInd = 15;
+verbose = false
  
 particleDetectParams.cen = [112+5304/2, 112+5304/2]; %measure the center of annulus in images taken by the camera
 particleDetectParams.rad = [2810/2, 5304/2];
@@ -17,7 +19,7 @@ particleDetectParams.radiusRange = [40,60];
 particleDetectParams.boundaryType = 'annulus';
 particleDetectParams.sigma = 50; % chosen by visual inspection
 
-particleTrackParams.skipvalue = 200
+particleTrackParams.skipvalue = 200;
 
 cdParams.radiusRange = particleDetectParams.radiusRange;
 cdParams.metersperpixel = 0.015/939;
@@ -41,7 +43,7 @@ padding = 1;
 cdParams.sigma = particleDetectParams.sigma; %for blurring large scale features
 cdParams.polarizerstrip = [[2731,2719,3643,3666];[212,212,6099,6100]];
 cdParams.calibrate =false; 
-cdParams.figverbose = true;
+cdParams.figverbose = false;
 
 dsParams.algorithm = 'levenberg-marquardt';
 % Function evalution limits
@@ -57,6 +59,5 @@ dsParams.scaling = 0.5;
 % How much of particle edge to remove before fit, 1 is the entire particle
 dsParams.maskradius = 0.96;
 
-verbose = true
 
-PeGSModular(FileParams, particleDetectParams,cdParams, dsParams, verbose)
+PeGSModular(FileParams, particleDetectParams,particleTrackParams,cdParams, dsParams, verbose)
