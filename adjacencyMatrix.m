@@ -1,15 +1,17 @@
 function adjacencyMatrix(p, f, verbose)
 directory = p.topDir
-if not(isfolder(append(directory,'adjacency'))) %make a new folder with warped images
-    mkdir(append(directory,'adjacency'));
+if not(isfolder(append(directory,p.adjacencyDir))) %make a new folder with warped images
+    mkdir(append(directory,p.adjacencyDir));
 end
 
 
-files = dir([directory,'solved/',p.imgReg(1:end-4),'solved.mat']) %which files are we processing ?
-nFrames = length(files) %how many files are we processing ?%snFrames = 92
+files = dir([directory,p.solvedDir,p.imgReg(1:end-4),'update.mat']); %which files are we processing ?
+nFrames = length(files); %how many files are we processing ?
 if nFrames ==0
-disp(['wrong spot:',directory,'solved/',p.imgReg(1:end-4),'solved.mat'])
+disp(['wrong spot:',directory,p.solvedDir,p.imgReg(1:end-4),'solved.mat'])
 return
+else
+    disp(['now processing ', num2str(nFrames), 'files into an adjacency matrix'])
 end
 
 %PARAMETERS NEEDED TO RUN THIS SCRIPT ARE SET HERE
@@ -18,14 +20,10 @@ fmin = 0.000001; %minimum force (in Newton) to consider a contact a valid contac
 fmax = 1000; %maximum force (in Newton) to consider a contact a valid contact
 emax = 2800; %maximum fit error/residual to consider a contact a valid contact
 fs=16; %plot font size
-%verbose = False; %make lots of plots as we go
 
 
 
 %%
-%Global Metrics will be stored in these structures
-%allContacts = struct('fAbs',0,'fNorm',0,'fTan',0); %data structure to store information about contacts
-%aID = 1; %Global contact counter over all contacts in all cycles.
 
 if go==true
 for cycle = 1:nFrames %loop over these cycles 
@@ -35,7 +33,8 @@ for cycle = 1:nFrames %loop over these cycles
     
     %input filnames
     peOutfilename = files(cycle).name %input filename 
-    camImageFileName = [directory, 'warpedimg/',peOutfilename(1:end-19),'.tif'];  %adjusted force image filename
+    savename = strrep(peOutfilename , '_solved_update.mat','.tif')
+    camImageFileName = fullfile(directory, 'warpedimg/',savename);  %adjusted force image filename
     
     % NO PARAMETERS SHOULD BE SET BY HAND BELOW THIS LINE
 
@@ -45,8 +44,8 @@ for cycle = 1:nFrames %loop over these cycles
         disp(['File not Found:', peOutfilename]); %complain about it
         return %and end the execution of this script
     else
-        pres = load([directoryini, 'solved/', peOutfilename]); %read peDiscSolve ouput
-        particle = pres.pres;
+        pres = load([directory, 'solved/', peOutfilename]); %read peDiscSolve ouput
+        particle = pres.particle;
         NN = length(particle);
         IDN = max([particle.id]);
     end
@@ -57,14 +56,11 @@ for cycle = 1:nFrames %loop over these cycles
     %particle(1:size(data,1)) = struct('id',0,'x',0,'y',0,'z',0,'fx',0,'fy',0); %data structure to store particle information
     contact = struct('id1',0,'id2',0,'x',0,'y',0,'fAbs',0,'fNorm',0,'fTan',0,'alpha',0,'beta',0,'contactX',0,'contactY',0,'error',0); %data structure to store information about contacts
     cID = 1; %contact counter
-    %A = zeros(NN); %empty binary adjacency matrix
     W = NaN(IDN); %empty force weighted adjacency matrix
     N = NaN(IDN); %empty normal force weighted adjacency matrix
     T = NaN(IDN); %empty tangential force weighted adjacency matrix
-    %P = NaN(NN);
     for n = 1:NN %for each particle
         err = particle(n).fitError; %get fit error 
-        
         r = particle(n).r; %get particle radius in pixel
         
         if ~isempty(particle(n).neighbours) % particle is in contact
@@ -76,19 +72,14 @@ for cycle = 1:nFrames %loop over these cycles
             for m=1:length(forces) %for each contact
 		
                 %if(forces(m) > fmin && err < emax && forces(m) < fmax) %is this a valid contact ?
-                if (forces(m) < fmax && forces(m)> 0 && particle(n).color(m) ~= 'y')% && err <emax)
+                if (forces(m) < fmax && forces(m)> fmin)% && err <emax)
                     %put information about the first particle involved in this
                     %contact in the corresponding particle structure vector
 
-                    %ideally the accumulated fx and fy should be zero, that is
-                    %the particle is in force balance
-                    %particle(n).fx = particle(n).fx + forces(m) * cos(betas(m)-pi); %x component of total force vector %CHECK AGAIN IF THIS IS GEOMETRICALLY CORRECT
-                    %particle(n).fy = particle(n).fy + forces(m) * sin(betas(m)-pi); %y component of total force vector %CHECK AGAIN IF THIS IS GEOMETRICALLY CORRECT
-                    %particle(n).z = particle(n).z+1; %increment the real contact number for the current particle
-
+                    
                     %put all the information about this contact
                     %into the contact struct vector
-%                     contact(cID).id1 = particle(n).id; %first particle involved in this contact
+
                     targetid = contacts(m);
                     ids = [particle.id];
                     tind1m = ids == targetid;
@@ -126,15 +117,15 @@ for cycle = 1:nFrames %loop over these cycles
         end
        
     end
-    list = [];
-    frameid = str2num(files(cycle).name(frameidind:frameidind+3));
+    
+    frameid = str2double(files(cycle).name(p.frameIdInd:p.frameIdInd+3));
     d = ~isnan(T);
     [row , col] = find(d==1);
     ind=sub2ind(size(T),row,col);
     
 %     list_T = [row , col , T(row,col) , N(row,col) , Theta(row,col)];
     list = [ones(length(row),1).*frameid,row , col , T(ind) , N(ind)];
-    writematrix(list, [directoryini, 'adjacency/',files(cycle).name(1:end-4),'-Adjacency.txt'] );
+    writematrix(list, [directory, 'adjacency/',files(cycle).name(1:end-4),'-Adjacency.txt'] );
     %%
 % length(nonzeros(W))
 % edges = 10.^(-5:0.1:2);
@@ -177,7 +168,7 @@ for cycle = 1:nFrames %loop over these cycles
 end
 end
 %%
-AdjFiles = dir([directoryini, 'adjacency/', fileNames(1:end-4), '-Adjacency.txt'])
+AdjFiles = dir([directory, 'adjacency/', '*-Adjacency.txt']);
 nFrames = length(AdjFiles);   
 posData = load([AdjFiles(nFrames-1).folder,'/', AdjFiles(nFrames -1).name]);
     
@@ -185,11 +176,11 @@ skipamount = length(posData)+2000; %I chose this as a result of my system size, 
 Adj_list = nan(nFrames*skipamount, 5);
 
 for frame = 1:nFrames
-        frame
+        
         %posData = dlmread([directory, datafiles(n).name]);
     
         posData = load([AdjFiles(frame).folder, '/', AdjFiles(frame).name]);
-        frameid = frame
+        
         if length(posData) > skipamount
             error(['up the skipamount by', num2str(length(posData)-skipamount)])
             break
@@ -198,9 +189,8 @@ for frame = 1:nFrames
 end        
 Adj_list(any(isnan(Adj_list),2),:)=[];
 
-
 %fram number, particle 1, particle id 2, tangential force, normal force
-dlmwrite([directoryini,'Adjacency_list.txt'],Adj_list);
+writematrix(Adj_list, [directory,'Adjacency_list.txt']);
 disp('Adjacency matrix built')
 
 

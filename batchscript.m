@@ -3,11 +3,17 @@
 
 FileParams.topDir = ['./']; % where the images are stored
 FileParams.imgReg = '*.jpg'; %image format and regex
-FileParams.imageDir = 'warpedimg/'
+FileParams.imageDir = 'images/'
+FileParams.warpedImgDir = 'warpedimg/'
 FileParams.particleDir = 'particles/'
+FileParams.contactDir = 'contacts/'
+FileParams.solvedDir = 'solved/'
+FileParams.synthImgDir = 'synthimg/'
+FileParams.adjacencyDir = 'adjacency/'
+
 % several Step*.jpg files are present on GitHub as sample data
-FileParams.frameIdInd = 15;
-verbose = false
+FileParams.frameIdInd = 16;
+verbose = true
  
 particleDetectParams.cen = [112+5304/2, 112+5304/2]; %measure the center of annulus in images taken by the camera
 particleDetectParams.rad = [2810/2, 5304/2];
@@ -35,15 +41,16 @@ cdParams.rednormal = 8;
 cdParams.minpeakheight = 0.10;
 cdParams.minpeakprominence = 0.06;
 cdParams.minpeakprom_main = 0.06;
-
+cdParams.padding = 1
+cdParams.roach = false
 cdParams.imadjust_limits = [0, 0.6];
 cdParams.fineimadjust_limits = [0/255, 30/255];%[13/255, 39/255]
 
 padding = 1;
 cdParams.sigma = particleDetectParams.sigma; %for blurring large scale features
-cdParams.polarizerstrip = [[2731,2719,3643,3666];[212,212,6099,6100]];
-cdParams.calibrate =false; 
-cdParams.figverbose = false;
+cdParams.polarizerstrip = [[2900,2930,3560,3593];[220,220,6099,6100]];
+cdParams.calibrate =true; 
+cdParams.figverbose = true;
 
 dsParams.algorithm = 'levenberg-marquardt';
 % Function evalution limits
@@ -55,9 +62,12 @@ dsParams.functionTolerance = 0.01;
 %% Scaling of image for fit
 dsParams.scaling = 0.5;
 
+
+%%newtonizer params
+nwParams.boundaryType = particleDetectParams.boundaryType
 %% Masking radius
 % How much of particle edge to remove before fit, 1 is the entire particle
 dsParams.maskradius = 0.96;
 
 
-PeGSModular(FileParams, particleDetectParams,particleTrackParams,cdParams, dsParams, verbose)
+PeGSModular(FileParams, particleDetectParams,particleTrackParams,cdParams, dsParams,nwParams, verbose)

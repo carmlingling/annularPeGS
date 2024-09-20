@@ -23,7 +23,7 @@
 % images are stored, and it will write the output to that same
 % directory in a subdirectory 'output' using all .jpg files in that directory
 
-function PeGSModular(FileParams, particleDetectParams,particleTrackParams, cdParams, dsParams, verbose)
+function PeGSModular(FileParams, particleDetectParams,particleTrackParams, cdParams, dsParams, nwParams,verbose)
 if ~exist('FileParams')
     FileParams=struct;
 end
@@ -53,21 +53,21 @@ end
 %particleTrack(FileParams, particleTrackParams, verbose);
 %% set parameters for contactDetection() before running
 %cdParams = struct;
-contactDetection(FileParams, cdParams, verbose);
+%contactDetection(FileParams, cdParams, verbose);
 % if verbose 
 %         disp('done with contactDetection()');
 % end
 % 
 % userOptions = struct;
-% diskSolve(FileParams, userOptions, verbose);
+%diskSolve(FileParams, dsParams, verbose);
 % if verbose 
 %         disp('done with diskSolve()');
 % end
 %%
-%newtonize(topDirectory, imageNames, boundaryType, verbose)
+%newtonize(FileParams, nwParams, verbose)
 %'newtonized and edges handled'
 %%
-%adjacencyMatrix(topDirectory, imageNames, boundaryType, frameidind,verbose)
+adjacencyMatrix(FileParams, dsParams,verbose)
 %'Adjacency matrix built'
 
 %%

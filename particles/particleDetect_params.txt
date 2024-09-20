@@ -1,6 +1,12 @@
-topDir	/eno/cllee3/matlab/annularPeGS/	
+topDir	./	
 imgReg	*.jpg	
-frameIdInd	16	
+imageDir	images/	
+particleDir	particles/	
+frameIdInd	15	
+warpedImgDir	warpedimg/	
+contactDir	contacts/	
+solvedDir	solved/	
+adjacencyDir	adjacency/	
 cen	2764	2764
 rad	1405	2652
 R_overlap	15	
@@ -9,5 +15,5 @@ radiusRange	40	60
 boundaryType	annulus	
 sigma	50	
 sensitivity	0.945	
-lastimagename	100Hz_5spf_Img0069warped.tif	
-time	16-Sep-2024 13:36:40	
+lastimagename	100Hz_30mpf_Img0007warped.tif	
+time	18-Sep-2024 15:43:57	

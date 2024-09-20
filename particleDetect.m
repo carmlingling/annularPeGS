@@ -45,12 +45,12 @@ if isfield(f,'sensitivity') == 0
 f.sensitivity = 0.945;
 end
 
-if not(isfolder(append(p.topDir,'particles'))) %make a new folder with particle centers
-    mkdir(append(p.topDir,'particles'));
+if not(isfolder(append(p.topDir,p.particleDir))) %make a new folder with particle centers
+    mkdir(append(p.topDir,p.particleDir));
 end
 if f.boundaryType == "annulus"
-    disp([p.topDir, 'warpedimg/','*.tif'])
-    images=dir([p.topDir, 'warpedimg/','*.tif']);
+    disp([p.topDir, p.warpedImgDir','*.tif'])
+    images=dir([p.topDir, p.warpedImgDir,'*.tif']);
     if verbose
         disp([num2str(length(images)), ' images starting']);
     end
@@ -220,8 +220,10 @@ if f.boundaryType == "annulus"
         edges = zeros(length(u), 1);
         edges(owi) = 1;
         edges(iwi) = -1;
-        particle = [sxt, yt, rt, edges];
-        writematrix(particle,[p.topDir,'particles/', images(frame).name(1:end-4),'_centers.txt'])
+        viscircles([xt(owi), yt(owi)], rt(owi));
+        viscircles([xt(iwi), yt(iwi)], rt(iwi), 'Color', 'r');
+        particle = [xt, yt, rt, edges];
+        writematrix(particle,[p.topDir,p.particleDir, images(frame).name(1:end-4),'_centers.txt'])
     end
 
 
@@ -241,5 +243,5 @@ p.time = datetime("now");
 fields = fieldnames(p);
 C=struct2cell(p);
 params = [fields C];
-writecell(params,[p.topDir, 'particles/particleDetect_params.txt'],'Delimiter','tab')
+writecell(params,[p.topDir, p.particleDir,'/particleDetect_params.txt'],'Delimiter','tab')
 
