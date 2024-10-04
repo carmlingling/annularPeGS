@@ -1,7 +1,7 @@
 % update Lori S McCabe 08/2024 for PEGS 2.0 wrapper compatibility
 % original version Carmen Lee modular and converted as basis for PEGS 2.0
 
-function out = contactDetection(p, f, verbose)
+function out = contactDetection(fileParams, cdParams, verbose)
 %p passed in from wrapper
 %requires input/output directories, image names
 
@@ -17,66 +17,66 @@ function out = contactDetection(p, f, verbose)
 
 
 %% thresholding limits (setting defaults if none listed in wrapper)
-if ~isfield(f,'radiusRange') %range of radii for particles (in pixels)
-    f.radiusRange = [40 90];
+if ~isfield(cdParams,'radiusRange') %range of radii for particles (in pixels)
+    cdParams.radiusRange = [40 90];
 end
 
-if ~isfield(f,'metersperpixel') 
-    f.metersperpixel = .007/160;
+if ~isfield(cdParams,'metersperpixel') 
+    cdParams.metersperpixel = .007/160;
 end
 
-if ~isfield(f,'fsigma') %photoelastic stress coefficient
-    f.fsigma = 140;
+if ~isfield(cdParams,'fsigma') %photoelastic stress coefficient
+    cdParams.fsigma = 140;
 end
 
-if ~isfield(f,'g2cal') %calibration Value for the g^2 method, can be computed by joG2cal.m (PEGS 1.0 version)
-    f.g2cal = 100;
+if ~isfield(cdParams,'g2cal') %calibration Value for the g^2 method, can be computed by joG2cal.m (PEGS 1.0 version)
+    cdParams.g2cal = 100;
 end
 
-if ~isfield(f,'dtol') %how far away can the outlines of 2 particles be to still be considered Neighbors
-    f.dtol = 10;
+if ~isfield(cdParams,'dtol') %how far away can the outlines of 2 particles be to still be considered Neighbors
+    cdParams.dtol = 10;
 end
 
-if ~isfield(f,'contactG2Threshold') %sum of g2 in a contact area larger than this determines a valid contact
-    f.contactG2Threshold = 0.5; 
+if ~isfield(cdParams,'contactG2Threshold') %sum of g2 in a contact area larger than this determines a valid contact
+    cdParams.contactG2Threshold = 0.5; 
 end
 
-if ~isfield(f,'CR') %contact radius over which contact gradient is calculated
-    f.CR = 10;
+if ~isfield(cdParams,'CR') %contact radius over which contact gradient is calculated
+    cdParams.CR = 10;
 end
 
-if ~isfield(f,'imadjust_limits') %adjust contrast in green channel
-    f.imadjust_limits = [0,1];
+if ~isfield(cdParams,'imadjust_limits') %adjust contrast in green channel
+    cdParams.imadjust_limits = [0,1];
 end
 
-if ~isfield(f,'rednormal') %fractional amount to subtract the red channel from the green channel (Rimg/rednormal)
-    f.rednormal = 2;
+if ~isfield(cdParams,'rednormal') %fractional amount to subtract the red channel from the green channel (Rimg/rednormal)
+    cdParams.rednormal = 2;
 end
 
 
-if ~isfield(f,'figverbose') %show all the figures as you go
-    f.figverbose = false;
+if ~isfield(cdParams,'figverbose') %show all the figures as you go
+    cdParams.figverbose = false;
 end
 
 
 %% directory buisness and importing files
 %% file housekeeping
-if not(isfolder(append(p.topDir,'particles'))) %make a new folder with particle centers
-        mkdir(append(p.topDir,'particles'));
+if not(isfolder(append(fileParams.topDir,'particles'))) %make a new folder with particle centers
+        mkdir(append(fileParams.topDir,'particles'));
 end
 
 
 
-disp([p.topDir, 'warpedimg/', p.imgReg]) %print the filename
-files = dir([ p.topDir, 'warpedimg/', '*.tif']); %images
+disp([fileParams.topDir, 'warpedimg/', fileParams.imgReg]) %print the filename
+files = dir([ fileParams.topDir, 'warpedimg/', '*.tif']); %images
 
-centersfile = dir([p.topDir, 'particle_positions.txt']);
+centersfile = dir([fileParams.topDir, 'particle_positions.txt']);
 centersdata = readmatrix(fullfile(centersfile.folder, centersfile.name));
 
 %% setting up mask
-mask = abs(-f.CR:f.CR);
+mask = abs(-cdParams.CR:cdParams.CR);
 mask = mask.^2 + mask.^2';
-maskCR = double(sqrt(mask) <= f.CR-1);
+maskCR = double(sqrt(mask) <= cdParams.CR-1);
 
 
 
@@ -86,7 +86,7 @@ for imgnumb = 1:size(files,1)
     clear particle %reinitialize the particle structure
 
     %read in image
-    Img = imread([p.topDir,'warpedimg/',files(imgnumb).name]);
+    Img = imread([fileParams.topDir,'warpedimg/',files(imgnumb).name]);
     Rimg = Img(:,:,1);
     Gimg = Img(:,:,2); %force image
 
@@ -96,12 +96,12 @@ for imgnumb = 1:size(files,1)
     %tweaked for different lighting and transmission or reflection
     %photoelasticimetry
     
-    if f.boundaryType == "annulus"
+    if cdParams.boundaryType == "annulus"
         
-        bckgnd = poly2mask(f.polarizerstrip(1,:),f.polarizerstrip(2,:), length(Gimg), length(Gimg));
+        bckgnd = poly2mask(cdParams.polarizerstrip(1,:),cdParams.polarizerstrip(2,:), length(Gimg), length(Gimg));
         Gimg = inpaintCoherent(Gimg,bckgnd,'SmoothingFactor',5,'Radius',15);
         
-        if f.calibrate == true
+        if cdParams.calibrate == true
            figure;
            imshow(Gimg);
            hold on
@@ -109,9 +109,9 @@ for imgnumb = 1:size(files,1)
            drawnow;
         end
         
-        Gimg=imsubtract(Gimg,Rimg./f.rednormal);
+        Gimg=imsubtract(Gimg,Rimg./cdParams.rednormal);
    
-        G = fspecial('gaussian', 3*f.sigma+1, f.sigma);
+        G = fspecial('gaussian', 3*cdParams.sigma+1, cdParams.sigma);
         yb = imfilter(imcomplement(Rimg), G, 'replicate');
         Gimg = bsxfun(@minus, Gimg,yb*.09);
 
@@ -119,9 +119,9 @@ for imgnumb = 1:size(files,1)
         Gimg = Gimg.*(Gimg > 0);
     
     
-        Gimgd = imadjust(Gimg,f.imadjust_limits); %regular contrast
+        Gimgd = imadjust(Gimg,cdParams.imadjust_limits); %regular contrast
     
-        Gimgfine = imadjust(Gimg, f.fineimadjust_limits); %super boosted contrast
+        Gimgfine = imadjust(Gimg, cdParams.fineimadjust_limits); %super boosted contrast
         %frame = str2double(files(imgnumb).name(p.frameIdInd:p.frameIdInd+3));
         
 
@@ -129,7 +129,7 @@ for imgnumb = 1:size(files,1)
    
 %% initialize data structure
    
-    if f.figverbose
+    if cdParams.figverbose
         figure(1); %makes a lot of figures, override onto 1
         
         imshow(Gimg)
@@ -137,7 +137,7 @@ for imgnumb = 1:size(files,1)
 
     end
     
-    frame = str2double(files(imgnumb).name(p.frameIdInd:p.frameIdInd+3))
+    frame = str2double(files(imgnumb).name(fileParams.frameIdInd:fileParams.frameIdInd+3))
     
 
     %% initialize data structure
@@ -156,11 +156,11 @@ for imgnumb = 1:size(files,1)
             particle(n).y = pData(n,4);
             particle(n).r = round(pData(n,5));
             particle(n).edge = pData(n, 6);
-            particle(n).rm = particle(n).r*f.metersperpixel;
-            particle(n).fsigma = f.fsigma;
+            particle(n).rm = particle(n).r*cdParams.metersperpixel;
+            particle(n).fsigma = cdParams.fsigma;
         end
 
-        if f.figverbose
+        if cdParams.figverbose
             imshow(Gimg);
             viscircles([pData(:,3),pData(:,4)],pData(:,5));
             hold on;
@@ -197,7 +197,7 @@ for imgnumb = 1:size(files,1)
                 [gx,gy] = gradient(particleImg);
                 g2 = (gx.^2 + gy.^2).*mask2;
                 particle(n).g2 = sum(sum(g2));
-                particle(n).f = particle(n).g2/f.g2cal; %saving some particle scale features
+                particle(n).f = particle(n).g2/cdParams.g2cal; %saving some particle scale features
             else
                 error('badimage!!')
 
@@ -214,7 +214,7 @@ for imgnumb = 1:size(files,1)
         dmat = pdist2([xmat,ymat],[xmat,ymat]); %Creates a distance matrix for particle center locations
         rmat = rmat + rmat'; %Makes a combination of radii for each particle
 
-        friendmat = dmat < (rmat + f.dtol) & dmat~=0; %Logical "friend" matrix
+        friendmat = dmat < (rmat + cdParams.dtol) & dmat~=0; %Logical "friend" matrix
 
         friendmat = triu(friendmat); %Only examine the upper triangle portion (no repeats)
         [f1, f2] = find(friendmat == 1); %Creates an index of particles that are considered touching
@@ -232,14 +232,14 @@ for imgnumb = 1:size(files,1)
             r = rpairs(l,:);
 
                         
-            if f.figverbose
+            if cdParams.figverbose
             plot(x, y, 'LineWidth', 2)
             title('neighbour candidates')
             end
             
-            [contactG2p, contactIp] = contactspot(x,y,r, f.CR, Gimg, maskCR);
+            [contactG2p, contactIp] = contactspot(x,y,r, cdParams.CR, Gimg, maskCR);
 
-            if(contactG2p(1) > f.contactG2Threshold && contactG2p(2) > f.contactG2Threshold)
+            if(contactG2p(1) > cdParams.contactG2Threshold && contactG2p(2) > cdParams.contactG2Threshold)
 
                 %this is a valid contact, remember it
                 particle(f1(l)).z= particle(f1(l)).z +1; %increase coordination number
@@ -284,8 +284,8 @@ for imgnumb = 1:size(files,1)
                 y = particle(ep).y;
                 r = particle(ep).r;
                 for c =1:length(contacts) %technically doesn't need to be a loop but we will keep it for alternate scenarios
-                    [contactG2p, contactIp]= contactspotwall(x, y, r, f.CR, contacts(c),Gimg, maskCR);
-                    if(contactG2p > f.contactG2Threshold)
+                    [contactG2p, contactIp]= contactspotwall(x, y, r, cdParams.CR, contacts(c),Gimg, maskCR);
+                    if(contactG2p > cdParams.contactG2Threshold)
                         particle(ep).z= particle(ep).z +1; %increase coordination number
                         particle(ep).contactG2s(particle(ep).z)=contactG2p;
                         particle(ep).contactIs(particle(ep).z)=contactIp;
@@ -304,7 +304,7 @@ for imgnumb = 1:size(files,1)
 
 
 
-if f.figverbose 
+if cdParams.figverbose 
     h3 = figure(20);
     hAx1 = subplot(1,1,1,'Parent', h3);
     imshow(Gimg, 'Parent', hAx1);
@@ -321,7 +321,7 @@ if f.figverbose
                 lineX(2) = lineX(1) + particle(n).r * cos(particle(n).betas(m));
                 lineY(2) = lineY(1) + particle(n).r * sin(particle(n).betas(m));
                 viscircles([lineX(1), lineY(1)], particle(n).r, 'color', 'blue');
-                viscircles([lineX(1) + (particle(n).r-f.CR) * cos(particle(n).betas(m)) lineY(1) + (particle(n).r-f.CR) * sin(particle(n).betas(m))], f.CR, 'color', 'white');
+                viscircles([lineX(1) + (particle(n).r-cdParams.CR) * cos(particle(n).betas(m)) lineY(1) + (particle(n).r-cdParams.CR) * sin(particle(n).betas(m))], cdParams.CR, 'color', 'white');
 
                 plot(hAx1, lineX, lineY,particle(n).color(m),'LineWidth',2);
             end
@@ -330,32 +330,32 @@ if f.figverbose
     end
     drawnow;
 
-    saveas(h3,[p.topDir,'Contacts_',files(imgnumb).name(1:end-4)],'jpg') %save fig(20) 
+    saveas(h3,[fileParams.topDir,'Contacts_',files(imgnumb).name(1:end-4)],'jpg') %save fig(20) 
 end %PEGS wrapper verbose
 
 
 disp([num2str(sum([particle.z])), ' contacts detected'])
 
 %save updated particle contact info
-save([p.topDir,'particles/', files(imgnumb).name(1:end-4),'_preprocessing.mat'],'particle')
+save([fileParams.topDir,'particles/', files(imgnumb).name(1:end-4),'_preprocessing.mat'],'particle')
 
 end %loop imgnumb
 
 %save parameters 
-fields = fieldnames(f);
+fields = fieldnames(cdParams);
 for i = 1:length(fields)
-    p.(fields{i}) = f.(fields{i})
+    fileParams.(fields{i}) = cdParams.(fields{i})
 end
 %p = rmfield(p,'radiusRange');
 %p.lastimagename=files(imgnumb).name;
-p.time = datetime("now");
-fields = fieldnames(p);
-C=struct2cell(p);
+fileParams.time = datetime("now");
+fields = fieldnames(fileParams);
+C=struct2cell(fileParams);
 params = [fields C];
 %writecell(params,[p.topDir, 'particles/particleDetect_params.txt'],'Delimiter','tab')
 %f.time = datetime; %add time to writeout
 
-writecell(params,[p.topDir,'particles/','contactDetect_params.txt'],'Delimiter',',')
+writecell(params,[fileParams.topDir,'particles/','contactDetect_params.txt'],'Delimiter',',')
 
 % writetable(f,[p.outDir, files(imgnumb).name(1:end-4),'_parameters.txt'])
 
