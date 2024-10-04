@@ -1,15 +1,15 @@
 %rebalancing forces for particles that have a fit error greater than a given
 %threshold
-function newtonize(p, f, verbose)
+function newtonize(fileParams, nwParams, verbose)
 
 
 
 
 filename = '*solved.mat';
-imname = p.imgReg;
-imagefiles = dir([p.topDir,p.synthImgDir, imname]);
+imname = '*Synth.jpg';
+imagefiles = dir([fileParams.topDir,fileParams.synthImgDir, imname]);
 %directory = [directory,'warpedimg/'];
-forcefiles = dir([p.topDir,p.solvedDir, filename]);
+forcefiles = dir([fileParams.topDir,fileParams.solvedDir, filename]);
 
 
 fiterrorcutoff = 1850;
@@ -42,7 +42,7 @@ for frame=1:length(forcefiles)
         errors(n) = particle(n).fitError;
         end
     end
-    if f.boundaryType == "annulus"
+    if nwParams.boundaryType == "annulus"
     othererrors = zeros(N,1);
     
     for n=1:N
@@ -284,7 +284,7 @@ bigerr = bigerr(sortIdx);
                     indexN = find(id2ind==neighbours(k));
                     positionNeighbour = find(particle(indexN).neighbours==IDN);
                     if length(positionNeighbour)>1
-                        positionNeighbour = positionNeighbour(1)
+                        positionNeighbour = positionNeighbour(1);
                     end
                     particle(n).forces(k) = particle(indexN).forces(positionNeighbour);
                     particle(n).alphas(k) = particle(indexN).alphas(positionNeighbour);
@@ -415,125 +415,17 @@ bigerr = bigerr(sortIdx);
             bigerr = bigerr(sortIdx);
             iterate= iterate+1;
         end
-   %     end
-    
-%                 for m=1:z %loop over the neighbours
-% 
-%                     indN = find(id2ind==Nneighbours(m)) %find the index of the neighbour
-%             		if length(indN)>1
-%                 		indN = indN(1); %sometimes the contact finding algorithm finds the same neighbour multiple times this is a needed bug to fix but this should work for now
-%             		end
-%                     if ~ismember(indN, bigerr) && particle(indN).edge >=0 %make sure it's not bad either
-%                         neighbours = [particle(indN).neighbours];
-%                         if length(neighbours)>1
-%                             positionNeighbour = find(neighbours == IDN);
-%                             if length(positionNeighbour)>1
-%                 				positionNeighbour=positionNeighbour(1);
-%             				end
-%                         elseif neighbours == IDN;
-%                             positionNeighbour = 1;
-%                         end
-%                         
-%                         particle(n).forces(m) = particle(indN).forces(positionNeighbour);
-%                         particle(n).alphas(m) = -particle(indN).alphas(positionNeighbour);
-%                         particle(indN).alphas(positionNeighbour);
-%                     else
-%                         badneighbour(m) = indN;
-%                     end
-%                 end
-% 
-%                 force = particle(n).forces;
-%                 alpha =particle(n).alphas;
-%                 betas = particle(n).betas;
-%                 fsigma = particle(n).fsigma;
-%                 rm = particle(n).rm;
-%                 scaling = 0.5;
-%                 verbose = false;
-%                 template= particle(n).forceImage;
-%                 %template = imadjust(particle(n).forceImage);
-%                 %template = imresize(template,scaling);
-%                 if verbose
-%                     subplot(1,2,1)
-%                     imshow(template)
-%                     hold on;
-%                     plot(particle(n).r*(1+cos(betas)), particle(n).r*(1+sin(betas)), 'o');
-%                     for m=1:z
-%                         plot([particle(n).r*(1+cos(betas(m))),particle(n).r*(1+cos(particle(n).betas(m)+alphas(m)))] , [particle(n).r*(1+sin(particle(n).betas(m))),particle(n).r*(1+sin(particle(n).betas(m)+sin(particle(n).alphas(m))))], '-')
-%                     end
-%                 end
-%                 %
-% 
-%                 %size of the force image
-%                 px = size(template,1);
-%                 badneighbour=nonzeros(badneighbour);
-%                 beta = -betas+pi/2;
-% 
-%                 if length(badneighbour)==1
-% 
-%                     sum1 = 0;
-%                     sum2 = 0;
-%                     for k = 1:z
-%                         if(Nneighbours(k)~=badneighbour)
-% 
-%                             sum1 = sum1 + force(k)*sin(alpha(k)+beta(k)); %xforces
-%                             sum2 = sum2 + force(k)*cos(alpha(k)+beta(k)); %yforces
-% 
-%                         end
-%                     end
-%                     f = sqrt(sum1^2+sum2^2);
-% 
-%                     a = asin(-sum1/f);
-%                     loc = Nneighbours == badneighbour;
-%                     particle(n).forces(loc) = f;
-%                     particle(n).alphas(loc) = -a;
-% 
-%                     img = joForceImg (z, particle(n).forces, particle(n).alphas, betas, fsigma, rm, px, verbose);
-%                     bigerr(bigerr ==n)=[];
-%                     particle(n).synthImg = img;
-%                     particle(n).fitError = sum(sum(abs(imsubtract(img, template))));
-%                 elseif isempty(badneighbour)
-%                     img = joForceImg (z, particle(n).forces, particle(n).alphas, betas, fsigma, rm, px, verbose);
-%                     bigerr(bigerr ==n) =[];
-%                     %             figure
-%                     %             imshow(template)
-%                     %             hold on;
-%                     %             for m=1:length(force)
-%                     %             lineX(1)=px/2;
-%                     %                 lineY(1)=px/2;
-%                     %                 lineX(2) = lineX(1) + 100*force(m)*cos(alpha(m));
-%                     %                 lineY(2) = lineY(1) + 100*force(m)*sin(alpha(m));
-%                     %             plot(lineX, lineY)
-%                     %             end
-%                     particle(n).synthImg = img;
-%                     
-%                     %err = abs(sum(sum( ( c_mask.*(template-img).^2) )))
-%                     particle(n).fitError = sum(sum(abs(imsubtract(img, template))));
-% %                 elseif length(badneighbour)>1
-% %                     loc = Nneighbours == badneighbour;
-% %                     particle(n).forces(loc) = f;
-% %                     particle(n).alphas(loc) = -a;
-%                 end
-%                 if maxbad < length(badneighbour)
-%                     maxbad = length(badneighbour);
-%                 end
-%             end
 
-
-%         end
-%     end
-%     
-%  iteration = iteration+1;
-% end
-if f.boundaryType == "annulus"
+if nwParams.boundaryType == "annulus"
 for l=1:length(edges)
-    n = edges(l)
-    edgeneighbours = particle(n).neighbours
+    n = edges(l);
+    edgeneighbours = particle(n).neighbours;
     z = particle(n).z;
     IDN = particle(n).id;
-    for m=1:length(edgeneighbours>0)
-        Nindex = find(id2ind == edgeneighbours(m))
+    for m=1:z
+        Nindex = find(id2ind == edgeneighbours(m));
         %if ~isempty(Nindex)
-        if particle(Nindex).edge ==0
+        %if particle(Nindex).edge ==0
             steal = find(particle(Nindex).neighbours == IDN);
             if length(steal) ==1
             particle(n).forces(m) = particle(Nindex).forces(steal);
@@ -542,18 +434,21 @@ for l=1:length(edges)
             particle(n).forces(m) = particle(Nindex).forces(steal(1));
             particle(n).alphas(m) = -particle(Nindex).alphas(steal(1));
             end
-        else
-            particle(n).forces(m) = 0;
-            particle(n).alphas(m) = 0;
-        
-        %end
-        end
+%         else
+%             particle(n).forces(m) = 0;
+%             particle(n).alphas(m) = 0;
+%         
+%         %end
+%         end
     end
-    template= particle(n).forceImage;
-    px = size(template,1);
+    
     
     img = joForceImg (z, particle(n).forces, particle(n).alphas, particle(n).betas, particle(n).fsigma, particle(n).rm, px, verbose);
+    err = abs(sum(sum( ( c_mask.*(particle(n).forceImage-img).^2) )))
     particle(n).synthImg = img;
+    particle(n).fitError = err;
+    
+    
 end
 end
  %%
@@ -597,11 +492,11 @@ end
 %     img = joForceImg (z, particle(n).forces, particle(n).alphas, particle(n).betas, particle(n).fsigma, particle(n).rm, px, verbose);
 %     particle(n).synthImg = img;
 % end
-if f.boundaryType == "annulus"
-    save([p.topDir, p.solvedDir,forcefiles(frame).name(1:end-4),'_update.mat'],'particle');
+if nwParams.boundaryType == "annulus"
+    save([fileParams.topDir, fileParams.solvedDir,forcefiles(frame).name(1:end-4),'_update.mat'],'particle');
 end
 NN = length(particle);
-
+figure(1);
 bigSynthImg = zeros(size(I,1),size(I,2)); %make an empty image with the same size as the camera image
     for n=1:NN %for all particles
         %display(['fitting force(s) to particle ',num2str(n)]); %status indicator
@@ -610,7 +505,7 @@ bigSynthImg = zeros(size(I,1),size(I,2)); %make an empty image with the same siz
             %synthetic image of our whole packing 
             x = floor(particle(n).x); %interger rounded x coordinate of the current particle
             y = floor(particle(n).y); %interger rounded y coordinate of the current particle
-            r = particle(n).r; %radius (in pixels) of the current particle
+            %r = particle(n).r; %radius (in pixels) of the current particle
             sImg = particle(round(n)).synthImg; %synthetic force image for the current particle
             sx = size(sImg,1)/2; %width of the synthetic force image of the current particle
             sy = size(sImg,2)/2; %heights of the synthetic force image of the current partice
@@ -620,7 +515,8 @@ bigSynthImg = zeros(size(I,1),size(I,2)); %make an empty image with the same siz
 
 imshow(bigSynthImg);
 drawnow;
-imwrite(bigSynthImg,[p.topDir,p.synthImgDir,imagefiles(frame).name(1:end-4),'update.jpg'])
+imagename = strrep(imagefiles(frame).name, '.jpg','update.jpg');
+imwrite(bigSynthImg,[fileParams.topDir,fileParams.synthImgDir,imagefiles(frame).name(1:end-4),'update.jpg'])
 %%
 
 % figure;

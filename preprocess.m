@@ -55,6 +55,7 @@ if f.boundaryType == "annulus"
             im1(:,:,3) = 0 ;
             imshow(im1)
             drawnow;
+            hold off
         end
         im1 = padarray(im1,[400 400], 'both'); % have to pad image with some amount of extra pixels to not lose any edge material when warping
         [nrows, ncols,~] = size(im1);

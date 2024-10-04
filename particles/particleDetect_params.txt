@@ -1,12 +1,13 @@
 topDir	./	
 imgReg	*.jpg	
-imageDir	images/	
-particleDir	particles/	
-frameIdInd	15	
+imgDir	images/	
 warpedImgDir	warpedimg/	
+particleDir	particles/	
 contactDir	contacts/	
 solvedDir	solved/	
+synthImgDir	synthimg/	
 adjacencyDir	adjacency/	
+frameIdInd	16	
 cen	2764	2764
 rad	1405	2652
 R_overlap	15	
@@ -14,6 +15,5 @@ dtol	25
 radiusRange	40	60
 boundaryType	annulus	
 sigma	50	
-sensitivity	0.945	
 lastimagename	100Hz_30mpf_Img0007warped.tif	
-time	18-Sep-2024 15:43:57	
+time	01-Oct-2024 13:09:59	

@@ -1,11 +1,11 @@
 topDir,./
 imgReg,*.jpg
-imageDir,images/
-particleDir,particles/
-frameIdInd,16
+imgDir,images/
 warpedImgDir,warpedimg/
+particleDir,particles/
 contactDir,contacts/
 solvedDir,solved/
-adjacencyDir,adjacency/
 synthImgDir,synthimg/
-time,19-Sep-2024 16:20:12
+adjacencyDir,adjacency/
+frameIdInd,16
+time,01-Oct-2024 12:44:39

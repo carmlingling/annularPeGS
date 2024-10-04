@@ -1,0 +1,16 @@
+topDir	./
+imgReg	*.jpg
+imgDir	images/
+warpedImgDir	warpedimg/
+particleDir	particles/
+contactDir	contacts/
+solvedDir	solved/
+synthImgDir	synthimg/
+adjacencyDir	adjacency/
+frameIdInd	16
+go	1
+fmin	1e-06
+fmax	1000
+emax	2800
+skipvalue	200
+time	01-Oct-2024 13:02:32
