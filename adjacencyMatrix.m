@@ -1,208 +1,222 @@
-function adjacencyMatrix(p, f, verbose)
-directory = p.topDir
-if not(isfolder(append(directory,'adjacency'))) %make a new folder with warped images
-    mkdir(append(directory,'adjacency'));
+%Updated to first release version of PeGS2 by Carmen Lee 29/9/24
+%Adapted from Carmen Lee's adaptation of Jonathan Kollmer's PeGS 1.0
+%
+
+function out = adjacencyMatrix(fileParams, amParams, verbose)
+
+
+%% FILE MANAGEMENT
+if not(isfolder(fullfile(fileParams.topDir,fileParams.adjacencyDir))) %make a new folder with warped images
+    mkdir(fullfile(fileParams.topDir,fileParams.adjacencyDir));
 end
 
 
-files = dir([directory,'solved/',p.imgReg(1:end-4),'solved.mat']) %which files are we processing ?
-nFrames = length(files) %how many files are we processing ?%snFrames = 92
+files = dir(fullfile(fileParams.topDir,fileParams.solvedDir,'*update.mat')); %which files are we processing ?
+nFrames = length(files); %how many files are we processing ?
 if nFrames ==0
-disp(['wrong spot:',directory,'solved/',p.imgReg(1:end-4),'solved.mat'])
-return
+    error(['wrong spot:',fullfile(fileParams.topDir,fileParams.solvedDir,'*update.mat'), '--check path']);
+
+else
+    disp(['now processing ', num2str(nFrames), 'files into an adjacency matrix'])
 end
 
-%PARAMETERS NEEDED TO RUN THIS SCRIPT ARE SET HERE
-go = true;
-fmin = 0.000001; %minimum force (in Newton) to consider a contact a valid contact
-fmax = 1000; %maximum force (in Newton) to consider a contact a valid contact
-emax = 2800; %maximum fit error/residual to consider a contact a valid contact
-fs=16; %plot font size
-%verbose = False; %make lots of plots as we go
+%% DEFAULT PARAMETERS NEEDED TO RUN THIS SCRIPT ARE SET BELOW IN THE
+%SETUPPARAMS FUNCTION
+
+amParams = setupParams(amParams);
+
+%% CREATING INDIVIDUAL adjacency lists
+
+if amParams.go==true
+    for cycle = 189:nFrames %loop over these cycles
+
+        clearvars particle;
+        clearvars contact;
+
+        % NO PARAMETERS SHOULD BE SET BY HAND BELOW THIS LINE
 
 
-
-%%
-%Global Metrics will be stored in these structures
-%allContacts = struct('fAbs',0,'fNorm',0,'fTan',0); %data structure to store information about contacts
-%aID = 1; %Global contact counter over all contacts in all cycles.
-
-if go==true
-for cycle = 1:nFrames %loop over these cycles 
-    
-    clearvars particle;
-    clearvars contact;
-    
-    %input filnames
-    peOutfilename = files(cycle).name %input filename 
-    camImageFileName = [directory, 'warpedimg/',peOutfilename(1:end-19),'.tif'];  %adjusted force image filename
-    
-    % NO PARAMETERS SHOULD BE SET BY HAND BELOW THIS LINE
-
-    %check if the data we want to read exists
-    %if it does, load it, else abort
-    if ~(exist([directory, 'solved/',peOutfilename], 'file') == 2) %if the file we try to open does not exist
-        disp(['File not Found:', peOutfilename]); %complain about it
-        return %and end the execution of this script
-    else
-        pres = load([directoryini, 'solved/', peOutfilename]); %read peDiscSolve ouput
-        particle = pres.pres;
+        pres = load(fullfile(files(cycle).folder, files(cycle).name)); %read output from diskSolve
+        particle = pres.particle;
         NN = length(particle);
         IDN = max([particle.id]);
-    end
+        ids = [particle.id];
+
+        %DATA EVALUATION AND ANALYSIS STARTS HERE
 
 
-    %DATA EVALUATION AND ANALYSIS STARTS HERE
+        N = NaN(IDN+1); %empty normal force weighted adjacency matrix (one extra column/row for edge force)
+        T = NaN(IDN+1); %empty tangential force weighted adjacency matrix
 
-    %particle(1:size(data,1)) = struct('id',0,'x',0,'y',0,'z',0,'fx',0,'fy',0); %data structure to store particle information
-    contact = struct('id1',0,'id2',0,'x',0,'y',0,'fAbs',0,'fNorm',0,'fTan',0,'alpha',0,'beta',0,'contactX',0,'contactY',0,'error',0); %data structure to store information about contacts
-    cID = 1; %contact counter
-    %A = zeros(NN); %empty binary adjacency matrix
-    W = NaN(IDN); %empty force weighted adjacency matrix
-    N = NaN(IDN); %empty normal force weighted adjacency matrix
-    T = NaN(IDN); %empty tangential force weighted adjacency matrix
-    %P = NaN(NN);
-    for n = 1:NN %for each particle
-        err = particle(n).fitError; %get fit error 
-        
-        r = particle(n).r; %get particle radius in pixel
-        
-        if ~isempty(particle(n).neighbours) % particle is in contact
-            contacts = particle(n).neighbours; %get IDs of all contacting particles
-            betas = particle(n).betas+pi; %get the beta angle (position of contact point) associated with each contact
-            forces = particle(n).forces; %get the force associated with each contact
-            alphas = particle(n).alphas; %get the alpha angle (direction of force) associated with each contact
-            
-            for m=1:length(forces) %for each contact
-		
-                %if(forces(m) > fmin && err < emax && forces(m) < fmax) %is this a valid contact ?
-                if (forces(m) < fmax && forces(m)> 0 && particle(n).color(m) ~= 'y')% && err <emax)
-                    %put information about the first particle involved in this
-                    %contact in the corresponding particle structure vector
+        if verbose %if we want to plot the data we need another structure
+            clear contactpos
+            contactpos(1:NN) = struct('x',[], 'y',[], 'cx', [], 'cy', [], 'forces', []);
+        end
 
-                    %ideally the accumulated fx and fy should be zero, that is
-                    %the particle is in force balance
-                    %particle(n).fx = particle(n).fx + forces(m) * cos(betas(m)-pi); %x component of total force vector %CHECK AGAIN IF THIS IS GEOMETRICALLY CORRECT
-                    %particle(n).fy = particle(n).fy + forces(m) * sin(betas(m)-pi); %y component of total force vector %CHECK AGAIN IF THIS IS GEOMETRICALLY CORRECT
-                    %particle(n).z = particle(n).z+1; %increment the real contact number for the current particle
+        for n = 1:NN %for each particle
+            err = particle(n).fitError; %get fit error
 
-                    %put all the information about this contact
-                    %into the contact struct vector
-%                     contact(cID).id1 = particle(n).id; %first particle involved in this contact
-                    targetid = contacts(m);
-                    ids = [particle.id];
-                    tind1m = ids == targetid;
-                    tind1 = find(tind1m);
-                    contact(cID).id2 = targetid; %second particle involved in this contact 
-                    contact(cID).x = particle(n).x;
-                    contact(cID).y = particle(n).y;
-                    contact(cID).fAbs = forces(m); %absolute force
-                    contact(cID).fNorm = forces(m)*cos(alphas(m)); %normal force (see Eq. 4.16)
-                    contact(cID).fTan = forces(m)*sin(alphas(m)); %tangential force
-                    contact(cID).alpha = alphas(m); %the alpha angle (direction of force) associated with this contact
-                    contact(cID).beta = betas(m); %the beta angle (position of contact point) associated with this contact  
-                    contact(cID).contactX =  r * cos(betas(m)-pi); %x component of vector to contact point
-                    contact(cID).contactY =  r * sin(betas(m)-pi); %y component of vector to contact point
-                    contact(cID).error = err; %fit error for this particle (the first particle in the contact)
-% 
-                    cID = cID + 1; %increment contact counter
-%                     
-%                     allContacts(aID).fAbs = forces(m); %absolute force
-%                     allContacts(aID).fNorm = forces(m)*cos(alphas(m)); %normal force (see Eq. 4.16)
-%                     allContacts(aID).fTan = forces(m)*sin(alphas(m)); %tangential force
-%                     
-%                     aID = aID+1;
 
-                    %build some adjacency matrices
-                    %if (contacts(m)>0) %correct for negative contact IDs in peDiscsolve, i.e.non-wall contacts only
-                         %A(n,contacts(m)) = 1; %mark contact in the binary adjacency matrix
-                         W(particle(n).id,particle(tind1).id) = real(forces(m)); %write the corrsponding force as a weight into an adjacency matrix
-                         N(particle(n).id,particle(tind1).id) = real(forces(m))*cos(alphas(m)); %write the corrsponding normal force as a weight into an adjacency matrix
-                         T(particle(n).id,particle(tind1).id) = real(forces(m))*sin(alphas(m)); %write the corrsponding tangential force as a weight into an adjacency matrix
-                         %P(n, tind1) = [x, y, rm]
-                    %end
+            if ~isempty(particle(n).neighbours) % particle is in contact
+                contacts = particle(n).neighbours; %get IDs of all contacting particles
+
+                forces = particle(n).forces; %get the force associated with each contact
+                alphas = particle(n).alphas; %get the alpha angle (direction of force) associated with each contact
+
+                for m=1:length(forces) %for each contact
+
+                    if(abs(forces(m)) > amParams.fmin && err < amParams.emax && abs(forces(m)) < amParams.fmax) %is this a valid contact ?
+
+                        %put information about the first particle involved in this
+                        %contact in the corresponding particle structure vector
+
+                        targetid = contacts(m);
+                        tind1m = ids == targetid;
+                        tind1 = find(tind1m); %dealing with particle ids that don't correspond to index (if tracked)
+
+
+                        %build some adjacency matrices
+                        if contacts(m) > 0
+                            N(particle(n).id,particle(tind1).id) = real(forces(m))*cos(alphas(m)); %write the corrsponding normal force as a weight into an adjacency matrix
+                            T(particle(n).id,particle(tind1).id) = real(forces(m))*sin(alphas(m)); %write the corrsponding tangential force as a weight into an adjacency matrix
+                        else
+                            N(particle(n).id, IDN+1) = real(forces(m))*cos(alphas(m)); %write the corrsponding normal force as a weight into an adjacency matrix
+                            T(particle(n).id,IDN+1) = real(forces(m))*sin(alphas(m)); %for edges
+                        end
+                        if verbose %save data for plotting
+
+                            contactpos(n).x(m) = particle(n).x;
+                            contactpos(n).y(m) = particle(n).y;
+                            contactpos(n).cx(m) = particle(n).r*cos(particle(n).betas(m));
+                            contactpos(n).cy(m) = particle(n).r*sin(particle(n).betas(m));
+                            contactpos(n).forces(m) = abs(forces(m));
+                        end
+                    end
                 end
             end
+
         end
-       
-    end
-    list = [];
-    frameid = str2num(files(cycle).name(frameidind:frameidind+3));
-    d = ~isnan(T);
-    [row , col] = find(d==1);
-    ind=sub2ind(size(T),row,col);
-    
-%     list_T = [row , col , T(row,col) , N(row,col) , Theta(row,col)];
-    list = [ones(length(row),1).*frameid,row , col , T(ind) , N(ind)];
-    writematrix(list, [directoryini, 'adjacency/',files(cycle).name(1:end-4),'-Adjacency.txt'] );
-    %%
-% length(nonzeros(W))
-% edges = 10.^(-5:0.1:2);
-% [N,edges] = histcounts(W,edges,'Normalization','countdensity');
-% figure;
-% g = histogram('BinEdges',edges,'BinCounts',N);
-% set(gca, "Xscale", "log")
-%     figure;
-%     plot(nonzeros(W), '.')
-%      drawnow;
+        if isfield(fileParams, 'frameIdInd')
+            frameid = str2double(files(cycle).name(fileParams.frameIdInd:fileParams.frameIdInd+3));
+        else
+            frameid = cycle;
+        end
+        d = ~isnan(T); %remove empty data
+        [row , col] = find(d==1);
+        ind=sub2ind(size(T),row,col);
+        col(col ==IDN+1) = -1; %assign edge neighbour id as -1
+
+
+        list = [ones(length(row),1).*frameid,row , col , T(ind) , N(ind)];
+        savename = strrep(files(cycle).name, 'solved_update.mat', 'Adjacency.txt');
+        writematrix(list, fullfile(fileParams.topDir, fileParams.adjacencyDir,savename) ); %save an adjacency list for the given frame 
+        %format [frameid, id1, id2, tangential force, normal force]
+
 
 
         if verbose
-        %figure(1)
-            %read and display the original image used as input to peDisc
-            %img = imcrop(imread(camImageFileName),[xoffset, yoffset, xsize, ysize]); %force image
-            img = imread(camImageFileName); %force image
+            figure(1)
+            %read and display the original image used as input
+            camImageFileName = strrep(files(cycle).name, '_solved_update.mat', 'warped.tif');
+            img = imread(fullfile(fileParams.topDir, fileParams.warpedImgDir,camImageFileName)); 
             imshow(img); hold on;
-            colormap(gray);
-            %plot the centers of all particles associated with a contact
-            plot([contact.x],[contact.y],'or')
-            %plot arrows from the centers of all particles associated with a contact to
-            %the contact point
-            f = [contact.fAbs];
+
+            
+            %
+            f = [contactpos.forces]; %set linescale
             norm = max(max(f));
             shift = min(min(f));
-            linewidths = 10*(f-shift+0.001)/norm;
-            for m= 1:length(f)
-                quiver([contact(m).x],[contact(m).y],[contact(m).contactX],[contact(m).contactY],0,'LineWidth',linewidths(m), Color='b')
+
+            %(not my best coding, can be improved -CL)
+            for m= 1:length(contactpos)
+                plot(contactpos(m).x, contactpos(m).y, 'or'); %plot the centers of all particles associated with a contact
+                for z =1:size(contactpos(m).x,2)
+                    linewidths = 10*(contactpos(m).forces(z)-shift+0.001)/norm;
+                    quiver(contactpos(m).x(z),contactpos(m).y(z),contactpos(m).cx(z),contactpos(m).cy(z),0,'LineWidth',linewidths, Color='b') %             %plot arrows from the centers of all particles associated with a contact to
+            %             %the contact point
+                end
             end
-                
-            %set font sizes and labels
-            
-            set(gca,'FontSize',fs);
-            title('camera image','FontSize',fs);
+
             drawnow;
+            hold off
         end
-    
- 
+
+
+    end
 end
-end
-%%
-AdjFiles = dir([directoryini, 'adjacency/', fileNames(1:end-4), '-Adjacency.txt'])
-nFrames = length(AdjFiles);   
-posData = load([AdjFiles(nFrames-1).folder,'/', AdjFiles(nFrames -1).name]);
-    
-skipamount = length(posData)+2000; %I chose this as a result of my system size, could and should be altered based on your specific system and variability in finding particles
+%% Compile all of the adjacency lists into a master list
+AdjFiles = dir(fullfile(fileParams.topDir, fileParams.adjacencyDir, '*_Adjacency.txt'));
+nFrames = length(AdjFiles);
+testData = load(fullfile(AdjFiles(nFrames-1).folder, AdjFiles(nFrames -1).name));
+
+skipamount = length(testData)+amParams.skipvalue;
 Adj_list = nan(nFrames*skipamount, 5);
 
 for frame = 1:nFrames
-        frame
-        %posData = dlmread([directory, datafiles(n).name]);
-    
-        posData = load([AdjFiles(frame).folder, '/', AdjFiles(frame).name]);
-        frameid = frame
-        if length(posData) > skipamount
-            error(['up the skipamount by', num2str(length(posData)-skipamount)])
-            break
-        end
-        Adj_list((frame-1)*skipamount+1:(frame-1)*skipamount +length(posData),:) = posData;
-end        
+
+
+    adjData = load([AdjFiles(frame).folder, '/', AdjFiles(frame).name]);
+
+    if length(adjData) > skipamount
+        error(['up the skipamount by', num2str(length(adjData)-skipamount)])
+    end
+    Adj_list((frame-1)*skipamount+1:(frame-1)*skipamount +length(adjData),:) = adjData;
+end
 Adj_list(any(isnan(Adj_list),2),:)=[];
 
+%frame number, particle 1, particle id 2, tangential force, normal force
+writematrix(Adj_list, fullfile(fileParams.topDir,'Adjacency_list.txt'));
 
-%fram number, particle 1, particle id 2, tangential force, normal force
-dlmwrite([directoryini,'Adjacency_list.txt'],Adj_list);
-disp('Adjacency matrix built')
 
+%%save parameters
+
+fields = fieldnames(amParams);
+for i = 1:length(fields)
+    fileParams.(fields{i}) = amParams.(fields{i});
+end
+
+
+fileParams.time = datetime("now");
+fields = fieldnames(fileParams);
+C=struct2cell(fileParams);
+amParams = [fields C];
+
+writecell(amParams,fullfile(fileParams.topDir, fileParams.adjacencyDir,'adjacencyMatrix_params.txt'),'Delimiter','tab')
+
+
+
+if verbose
+    disp('done with adjacencyMatrix()');
+end
+
+out = true;
+end
+
+
+
+
+
+function params = setupParams(params)
+
+if isfield(params,'go') == 0
+    params.go = true;
+end
+if isfield(params,'fmin') == 0
+    params.fmin = 0.000001;%minimum force (in Newton) to consider a contact a valid contact
+end
+
+
+if isfield(params,'fmax') == 0
+    params.fmax = 1000; %maximum force (in Newton) to consider a contact a valid contact
+end
+
+if isfield(params,'emax') == 0
+    params.emax = 2800; %maximum fit error/residual to consider a contact a valid contact
+end
+
+if isfield(params,'skipvalue') == 0
+    params.skipvalue = 20; %I chose this as a result of my system size, could and should be altered based on your specific system and variability in finding particles
 
 end
 
+end

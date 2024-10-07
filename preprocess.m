@@ -1,14 +1,11 @@
 %function particle_detect(directory)
 % A script to find particle locations
-function preprocess(p, f, verbose)
-% directory = './';
-% imname = 'test.jpg';
-% boundaryType = "annulus";
-% verbose = false;
-directory = [p.topDir, 'images/'];
-images=dir([directory,p.imgReg]);
+function preprocess(fileParams, pdParams, verbose)
+
+
+images=dir(fullfile(fileParams.topDir, fileParams.imgDir,fileParams.imgReg));
 nFrames = length(images);
-%nFrames = 1
+
 
 %cen = [2710, 2768]; %measure the center of annulus in images taken by the camera
 %rad = [2830/2, 5330/2];
@@ -23,19 +20,19 @@ yLimitsOut = [1,6304]; %can be calculated just before imwarp is called but it is
 %% for doing camera transforms for both camera lens distortion and particle distance correction on annulus
 
 
-if f.boundaryType == "annulus"
-    if not(isfolder(append(p.topDir,'warpedimg'))) %make a new folder with warped images
-    mkdir(append(p.topDir,'warpedimg'))
+if pdParams.boundaryType == "annulus"
+    if not(isfolder(fullfile(fileParams.topDir,fileParams.warpedImgDir))) %make a new folder with warped images
+    mkdir(fullfile(fileParams.topDir,fileParams.warpedImgDir))
     end
-    im1=imread([directory,images(1).name]);
+    im1=imread(fullfile(images(1).folder,images(1).name));
     
         %trim the image to get rid of edge and center points 
         ncols = (1:size(im1,2));
         nrows = (1:size(im1,1))';
         
-        CC=sqrt((nrows-f.cen(2)).^2+(ncols-f.cen(1)).^2);
+        CC=sqrt((nrows-pdParams.cen(2)).^2+(ncols-pdParams.cen(1)).^2);
           
-        Q=(CC>=f.rad(1)) & (CC<=f.rad(2));
+        Q=(CC>=pdParams.rad(1)) & (CC<=pdParams.rad(2));
         mask = Q;
         mask(:,:,2) = Q;
         %mask(:,:,3) = 0;
@@ -43,9 +40,9 @@ if f.boundaryType == "annulus"
     %frame = frame+130
    
     
-    if ~isfile(append(p.topDir,'warpedimg/',images(frame).name(1:end-4),'warped.tif')) %check to see if images are already warped
+    if ~isfile(fullfile(fileParams.topDir,fileParams.warpedImgDir,[images(frame).name(1:end-4),'warped.tif'])) %check to see if images are already warped
         disp(frame)
-        im1=imread([directory,images(frame).name]);
+        im1=imread(fullfile(images(frame).folder,images(frame).name));
         im1 = im1(:,:,1:2);
         im1 = immultiply(im1, mask);
         
@@ -55,6 +52,7 @@ if f.boundaryType == "annulus"
             im1(:,:,3) = 0 ;
             imshow(im1)
             drawnow;
+            hold off
         end
         im1 = padarray(im1,[400 400], 'both'); % have to pad image with some amount of extra pixels to not lose any edge material when warping
         [nrows, ncols,~] = size(im1);
@@ -86,7 +84,7 @@ if f.boundaryType == "annulus"
         im =imwarp(im1,tform, "OutputView",Rout);
         im(:,:,3) = 0;
     
-        imwrite(im, append(p.topDir,'warpedimg/',images(frame).name(1:end-4),'warped.tif'))
+        imwrite(im, fullfile(fileParams.topDir,fileParams.warpedImgDir,[images(frame).name(1:end-4),'warped.tif']))
 
         %'done image warp'
     

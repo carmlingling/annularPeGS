@@ -1,0 +1,19 @@
+topDir	./testdata/	
+imgReg	*.jpg	
+imgDir	images/	
+warpedImgDir	warpedimg/	
+particleDir	particles/	
+contactDir	contacts/	
+solvedDir	solved/	
+synthImgDir	synthimg/	
+adjacencyDir	adjacency/	
+frameIdInd	15	
+cen	2764	2764
+rad	1405	2652
+R_overlap	15	
+dtol	25	
+radiusRange	40	60
+boundaryType	annulus	
+sigma	50	
+lastimagename	100Hz_5spf_Img0195warped.tif	
+time	04-Oct-2024 10:46:52	

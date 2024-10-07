@@ -27,30 +27,28 @@
 % 
 % %function particle_detect(directory)
 % % A script to find particle locations
-function particleDetect(p, f, verbose)
+function out = particleDetect(fileParams, pdParams, verbose)
+%fileParams = directories and image name pattern
+%pdParams = parameters for particle detect
+
+%% FILE MANAGEMENT
 
 
-if verbose == true
-figure
-disp('starting particleDetect()')
-end
-%classify edge particles with tolerance
-if isfield(f,'dtol') == 0
-f.dtol = 10;
-end
-dtol=f.dtol;
+    if ~exist(fullfile(fileParams.topDir, fileParams.particleDir) , 'dir')
+        mkdir(fullfile(fileParams.topDir, fileParams.particleDir))
+    end
 
-%sensitivity for Hough
-if isfield(f,'sensitivity') == 0
-f.sensitivity = 0.945;
-end
+    
+    if verbose
+        disp('starting particleDetect() to find all particle centroids and save results in particleDir')
+    end
 
-if not(isfolder(append(p.topDir,'particles'))) %make a new folder with particle centers
-    mkdir(append(p.topDir,'particles'));
-end
-if f.boundaryType == "annulus"
-    disp([p.topDir, 'warpedimg/','*.tif'])
-    images=dir([p.topDir, 'warpedimg/','*.tif']);
+%% Set up for parameters is found in the function below
+    pdParams = paramsSetUp(pdParams); %see below for defaults for params
+
+if pdParams.boundaryType == "annulus"
+    
+    images=dir(fullfile(fileParams.topDir, fileParams.warpedImgDir,'*.tif'));
     if verbose
         disp([num2str(length(images)), ' images starting']);
     end
@@ -59,36 +57,33 @@ if f.boundaryType == "annulus"
 
 
     for frame = 1:nFrames
-        disp(frame)
-        im = imread([images(frame).folder,'/', images(frame).name]);
+        
+        im = imread(fullfile(images(frame).folder, images(frame).name));
         red = im(:,:,1);
         green = im(:,:,2);
         red = imsubtract(red, green*0.2); %this works for the annulus images, removes excess green
-        red = imadjust(red, [0.20,0.65]); %this works for annulus, might need to tweak, brightens image
-
-        sigma = f.sigma; % chosen by visual inspection
+        red = imadjust(red, [00,0.60]); %this works for annulus, might need to tweak, brightens image
+        
+        sigma = pdParams.sigma; % chosen by visual inspection
         G = fspecial('gaussian', 3*sigma+1, sigma);
         yb = imfilter(red, G, 'replicate'); %removes large scale image features like bright spots
+        %yb(yb<100) = 0;
+        figure(2);
+        imshowpair(red, yb, 'montage')
         red = bsxfun(@minus, red,yb);
-
-
+        stretchlim(red);
+        red = imadjust(red, [0, 0.5]);
+        figure(3);
+        imshow(red);
+        [centers,radii,metrics]=imfindcircles(red,pdParams.radiusRange,'objectpolarity','dark','sensitivity',0.945,'method','twostage','EdgeThreshold',0.02);%values found by tweaking
         % if you want to check out the images
         if verbose == true
-            h1 = figure(1);
-            axes('Parent', h1);
-
-            %subplot(1, 2, 1)
-            imshow(red)
-
-            %subplot(1, 2, 2)
-            %green =imadjust(green);
-            %imshow(green);
+            figure(1);
+            imshow(red);
+            viscircles(centers, radii);
             hold on;
-            axis on
+            
         end
-
-
-        [centers,radii,metrics]=imfindcircles(red,f.radiusRange,'objectpolarity','dark','sensitivity',0.945,'method','twostage','EdgeThreshold',0.02);%values found by tweaking
         %%
         xt = centers(:,1);
         yt = centers(:,2);
@@ -116,22 +111,10 @@ if f.boundaryType == "annulus"
         [uv] = transformPointsInverse(tform, [0,0]); %particle original coordinates
         u = uv(:,1)-400;
         v = uv(:,2)-400;
-        %             figure;
-        %             imold = imread([directory, '/', images(frame).name]);
-        %             imshow(imold)
-        %             if verbose
-        %                 viscircles([u, v], rt)
-        %                 N = length(uv);
-        %                 for n=1:N
-        %             	    text(u(n),v(n),num2str(n),'Color','w');
-        %                 end
-        %                 hold on;
-        %             end
+        
 
-        %remove some of the misfound particles too close to the center
-
-        radialPos = sqrt((u-f.cen(1)).^2+(v-f.cen(2)).^2);
-        closeind = find(radialPos <= f.rad(1)+15 );
+        radialPos = sqrt((u-pdParams.cen(1)).^2+(v-pdParams.cen(2)).^2);
+        closeind = find(radialPos <= pdParams.rad(1)+15 );
         closeind = sortrows(closeind, 'descend');
 
 
@@ -144,7 +127,7 @@ if f.boundaryType == "annulus"
         v(closeind) = [];
 
         if verbose
-            viscircles([xt, yt], rt,'EdgeColor', 'b')
+            viscircles([xt, yt], rt,'EdgeColor', 'b');
         end
         %%
         %now we look for particles with a dramatic overlap
@@ -181,7 +164,7 @@ if f.boundaryType == "annulus"
 
         if verbose
             viscircles([xt, yt], rt,'EdgeColor','g'); %draw particle outline
-            hold on;
+            
         end
         %%
         dmat = pdist2([u,v],[u,v]);
@@ -214,32 +197,71 @@ if f.boundaryType == "annulus"
 
         %%
 
-        radialPos = sqrt((u-f.cen(1)).^2+(v-f.cen(2)).^2);
-        owi= radialPos <= f.rad(2)+2.5*f.dtol &radialPos >=f.rad(2)-2.5*f.dtol;
-        iwi = find(radialPos <= f.rad(1)+3.5*f.dtol &radialPos >=f.rad(1)-2.5*f.dtol);
+        radialPos = sqrt((u-pdParams.cen(1)).^2+(v-pdParams.cen(2)).^2);
+        
+        owi= radialPos <= pdParams.rad(2)+2.5*pdParams.dtol &radialPos >=pdParams.rad(2)-2.5*pdParams.dtol;
+        iwi = find(radialPos <= pdParams.rad(1)+3.5*pdParams.dtol &radialPos >=pdParams.rad(1)-2.5*pdParams.dtol);
         edges = zeros(length(u), 1);
         edges(owi) = 1;
         edges(iwi) = -1;
-        particle = [sxt, yt, rt, edges];
-        writematrix(particle,[p.topDir,'particles/', images(frame).name(1:end-4),'_centers.txt'])
+        % if you want to check out the images
+        if verbose == true
+            viscircles([xt(owi), yt(owi)], rt(owi), 'Color', 'y');
+            viscircles([xt(iwi), yt(iwi)], rt(iwi), 'Color', 'y');
+            hold off
+            drawnow;
+        end
+        particle = [xt, yt, rt, edges];
+        if verbose
+            disp(['image ', num2str(frame),' found ' num2str(length(particle)), ' particles'])
+        end
+        writematrix(particle,[fileParams.topDir,fileParams.particleDir, images(frame).name(1:end-4),'_centers.txt'])
     end
 
 
 end
-%dlmwrite([directory,images(frame).name(1:end-4),'centers_Improved.txt'],particle)
 
 
 
 
- fields = fieldnames(f);
- for i = 1:length(fields)
-    p.(fields{i}) = f.(fields{i});
- end
-%p = rmfield(p,'radiusRange');
-p.lastimagename=images(frame).name;
-p.time = datetime("now");
-fields = fieldnames(p);
-C=struct2cell(p);
-params = [fields C];
-writecell(params,[p.topDir, 'particles/particleDetect_params.txt'],'Delimiter','tab')
+%% saving parameters in and finishing module
 
+fields = fieldnames(pdParams);
+for i = 1:length(fields)
+    fileParams.(fields{i}) = pdParams.(fields{i});
+end
+
+fileParams.lastimagename=images(frame).name;
+fileParams.time = datetime("now");
+fields = fieldnames(fileParams);
+C=struct2cell(fileParams);
+pdParams = [fields C];
+writecell(pdParams,fullfile(fileParams.topDir, fileParams.particleDir,'particleDetect_params.txt'),'Delimiter','tab')
+
+
+if verbose 
+        disp('done with particleDetect()');
+end
+
+out = true;
+
+end
+
+%% defaults for particleDetectModule
+function p = paramsSetUp(p)
+%classify boundary type
+if isfield(p,'boundaryType') == 0
+    p.boundaryType = "rectangle";
+end
+
+%set radius range
+if isfield(p,'radiusRange') == 0
+    p.radiusRange = [45 80];
+end
+
+
+%classify edge particles with tolerance
+if isfield(p,'dtol') == 0
+    p.dtol = 10;
+end
+end

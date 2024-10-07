@@ -1,0 +1,530 @@
+%rebalancing forces for particles that have a fit error greater than a given
+%threshold
+function newtonize(fileParams, nwParams, verbose)
+
+
+
+
+filename = '*solved.mat';
+imname = '*Synth.jpg';
+imagefiles = dir([fileParams.topDir,fileParams.synthImgDir, imname]);
+%directory = [directory,'warpedimg/'];
+forcefiles = dir([fileParams.topDir,fileParams.solvedDir, filename]);
+
+
+fiterrorcutoff = 1850;
+
+maskradius = 0.96/2;
+troubleid = [];
+
+
+
+fig1 =figure(1);
+hAx1 = subplot(1,1,1,'Parent', fig1);
+
+for frame=1:length(forcefiles)
+    
+    particle = load(fullfile(forcefiles(frame).folder,forcefiles(frame).name));
+    particle = particle.particle;
+    id2ind = [particle.id];
+    for k=1:length(troubleid)
+        new = find(id2ind == troubleid(k));
+    
+        if ~isempty(new) %this just flags the ones that the solver is really having trouble with, something you can do with weird datapoints
+            particle(new).edge = -1;
+        end
+    
+    end
+    N = length(particle);
+    errors = zeros(N,1);
+    for n=1:N
+        if ~isempty(particle(n).fitError) 
+        errors(n) = particle(n).fitError;
+        end
+    end
+    if nwParams.boundaryType == "annulus"
+    othererrors = zeros(N,1);
+    
+    for n=1:N
+       
+        if ~isempty(particle(n).fitError)
+            
+        im1 = particle(n).synthImg;
+        im2 = particle(n).forceImage;
+        if size(im1, 1) ~= size(im2, 1)
+            im1 = im1(1:end-1, 1:end-1);
+        end
+
+        residual = imsubtract(im1, im2);
+        residual = abs(residual);
+        int = sum(sum(residual));
+        othererrors(n) = int;
+        particle(n).fitError=int;
+        end
+    end
+    bigerr = find(othererrors>fiterrorcutoff); %gives index
+    
+   
+    end
+    if verbose
+    figure;
+    histogram(errors);
+    title('errors')
+    end
+%     figure;
+%     histogram(othererrors)
+%     title('othererrors')
+    
+    
+    edges = find([particle.edge]~=0);
+
+
+    
+    I = imread([imagefiles(frame).folder,'/', imagefiles(frame).name]);
+    
+    imshow(I, 'Parent', hAx1);
+    x = [particle.x];
+    y = [particle.y];
+    r = [particle.r];
+    x2 = x(bigerr)';
+    y2 = y(bigerr)';
+    r2 = r(bigerr)';
+%     x3 = x(bigothererr)';
+%     y3 = y(bigothererr)';
+%     r3 = r(bigothererr)';
+    x4 = x(edges)';
+    y4 = y(edges)';
+    r4 = r(edges)';
+    viscircles(hAx1, [x2, y2], r2, 'EdgeColor', 'y', 'Linewidth', 2);
+    %viscircles(ax, [x3, y3], r3, 'EdgeColor', 'b', 'Linewidth', 1);
+    viscircles(hAx1, [x4, y4], r4, 'EdgeColor', 'r', 'Linewidth', 1);
+    for n=1:N
+        text(hAx1, x(n), y(n), num2str(particle(n).id), 'Color', 'b')
+    end
+    axis on;
+    drawnow;
+
+    
+
+
+%%
+%sort the bad particles by the number of bad neighbours/edges they have,
+%fewest first
+id2ind = [particle.id];
+rankerror = zeros(length(bigerr),1);
+for badparticle = 1:length(bigerr)
+    %bigerr(badparticle) is an index
+    neighbours = particle(bigerr(badparticle)).neighbours; %id
+    nonedge = neighbours(neighbours>0);
+    edge = neighbours(neighbours<0);
+    %id2ind(nonedge)
+    badneighbours = ismember(nonedge, id2ind(bigerr));
+    rankerror(badparticle) = sum(badneighbours)+length(edge);
+end
+[rankerror,sortIdx] = sort(rankerror);
+bigerr = bigerr(sortIdx);
+        
+
+
+% if boundaryType == "annulus"
+%            iterate = 0;
+%         
+%         maxiter = length(bigerr);
+%         while iterate <maxiter & ~isempty(bigerr)
+%     for n=1:N
+%         if particle(n).edge >= 0 & errors(n)>cutoff %check to only work with non-inner edge particles and those above the cutoff
+%                 IDN = particle(n).id; %get the id of the particle in question
+%                 Nneighbours = [particle(n).neighbours]; %find the neighbours (ids)
+% 
+%                 z = particle(n).z; %number of neighbours
+%                 badneighbour = zeros(z, 1); %make an array for potential bad neighbours that are also above the cutoff
+% 
+% 
+%                 for m=1:z %loop over the neighbours
+% 
+%                     indN = find(id2ind==Nneighbours(m)); %find the index of the neighbour
+%             		if length(indN)>1
+%                 		indN = indN(1); %sometimes the contact finding algorithm finds the same neighbour multiple times this is a needed bug to fix but this should work for now
+%             		end
+%                     if ~ismember(indN, bigerr) && particle(indN).edge >=0 %make sure it's not bad either
+%                         neighbours = [particle(indN).neighbours];
+%                         if length(neighbours)>1
+%                             positionNeighbour = find(neighbours == IDN);
+%                             if length(positionNeighbour)>1
+%                 				positionNeighbour=positionNeighbour(1);
+%             				end
+%                         elseif neighbours == IDN;
+%                             positionNeighbour = 1;
+%                         end
+%                         
+%                         particle(n).forces(m) = particle(indN).forces(positionNeighbour);
+%                         particle(n).alphas(m) = -particle(indN).alphas(positionNeighbour);
+%                         particle(indN).alphas(positionNeighbour)
+%                     else
+%                         badneighbour(m) = indN;
+%                     end
+%                 end
+% 
+%                 force = particle(n).forces;
+%                 alpha =particle(n).alphas;
+%                 betas = particle(n).betas;
+%                 fsigma = particle(n).fsigma;
+%                 rm = particle(n).rm;
+%                 scaling = 0.5;
+%                 verbose = false;
+%                 template= particle(n).forceImage;
+%                 template = imadjust(particle(n).forceImage);
+%                 template = imresize(template,scaling);
+%                 if verbose
+%                     subplot(1,2,1)
+%                     imshow(template)
+%                     hold on;
+%                     plot(particle(n).r*(1+cos(betas)), particle(n).r*(1+sin(betas)), 'o');
+%                     for m=1:z
+%                         plot([particle(n).r*(1+cos(betas(m))),particle(n).r*(1+cos(particle(n).betas(m)+alphas(m)))] , [particle(n).r*(1+sin(particle(n).betas(m))),particle(n).r*(1+sin(particle(n).betas(m)+sin(particle(n).alphas(m))))], '-')
+%                     end
+%                 end
+%                 
+% 
+%                 size of the force image
+%                 px = size(template,1);
+%                 badneighbour=nonzeros(badneighbour);
+%                 beta = -betas+pi/2;
+% 
+%                 if length(badneighbour)==1
+% 
+%                     sum1 = 0;
+%                     sum2 = 0;
+%                     for k = 1:z
+%                         if(Nneighbours(k)~=badneighbour)
+% 
+%                             sum1 = sum1 + force(k)*sin(alpha(k)+beta(k)); %xforces
+%                             sum2 = sum2 + force(k)*cos(alpha(k)+beta(k)); %yforces
+% 
+%                         end
+%                     end
+%                     f = sqrt(sum1^2+sum2^2);
+% 
+%                     a = asin(-sum1/f);
+%                     loc = Nneighbours == badneighbour;
+%                     particle(n).forces(loc) = f;
+%                     particle(n).alphas(loc) = -a;
+% 
+%                     img = joForceImg (z, particle(n).forces, particle(n).alphas, betas, fsigma, rm, px, verbose);
+%                     bigerr(bigerr ==n)=[];
+%                     particle(n).synthImg = img;
+%                     particle(n).fitError = sum(sum(abs(imsubtract(img, template))));
+%                 elseif isempty(badneighbour)
+%                     img = joForceImg (z, particle(n).forces, particle(n).alphas, betas, fsigma, rm, px, verbose);
+%                     bigerr(bigerr ==n) =[];
+%                   
+%                     particle(n).synthImg = img;
+%                     
+%                     err = abs(sum(sum( ( c_mask.*(template-img).^2) )))
+%                     particle(n).fitError = sum(sum(abs(imsubtract(img, template))));
+%                 elseif length(badneighbour)>1
+%                     loc = Nneighbours == badneighbour;
+%                     particle(n).forces(loc) = f;
+%                     particle(n).alphas(loc) = -a;
+%                 end
+%                 if maxbad < length(badneighbour)
+%                     maxbad = length(badneighbour);
+%                 end
+%             end
+%     end
+%         end
+
+        
+
+        %sort bad particles by the number of bad neighbours
+        iterate = 0;
+        
+        maxiter = length(bigerr);
+        while iterate <maxiter && ~isempty(bigerr)
+            
+            badparticle = 1; %check only particles above the cutoff
+            n = bigerr(badparticle); %index of the particle in question in the particle structure
+            IDN = particle(n).id;        %ID of the particle in question
+
+
+            %load some stuff from the particle structure
+            fsigma = particle(n).fsigma;
+            rm = particle(n).rm;
+
+            verbose = false;
+            template= particle(n).forceImage;
+            px = size(template,1);
+
+            rank = rankerror(badparticle);
+            %this next bit is extremely messy. Please proceed with caution
+            %and kind wishes
+            neighbours = particle(n).neighbours;
+                if rank>0
+                nonedge=neighbours((neighbours>0));
+                badneighbours = find(ismember(nonedge, id2ind(bigerr)));
+                
+                bad2 = find(neighbours < 0);
+                if ~isempty(badneighbours) && ~isempty(bad2)
+                    badneighbours = [badneighbours,bad2];
+                elseif isempty(badneighbours) && ~isempty(bad2)
+                    badneighbours = bad2;
+                elseif ~isempty(badneighbours) && isempty(bad2)
+                    badneighbours = badneighbours;
+                end
+                good = 1:length(neighbours);
+                good =good(setdiff(1:end,badneighbours));
+               
+                else
+                    good = 1:length(neighbours);
+                end
+                for m=1:length(good) %loop over the neighbours, 
+                    %now find the force from the neighbour particles' list
+                    %of forces
+                    k = good(m);
+                    indexN = find(id2ind==neighbours(k));
+                    positionNeighbour = find(particle(indexN).neighbours==IDN);
+                    if length(positionNeighbour)>1
+                        positionNeighbour = positionNeighbour(1);
+                    end
+                    particle(n).forces(k) = particle(indexN).forces(positionNeighbour);
+                    particle(n).alphas(k) = particle(indexN).alphas(positionNeighbour);
+                    
+                end
+                
+                force = particle(n).forces;
+                alpha =particle(n).alphas;
+                betas = particle(n).betas;
+                
+            if rankerror(badparticle) == 0
+                bigerr(badparticle) =[];
+                rankerror(badparticle) = [];
+                    
+            elseif rankerror(badparticle)==1
+                %only one or zero neighbour/edges we cannot match
+                disp('small route')
+
+
+           
+                    sum1 = 0;
+                    sum2 = 0;
+                    sum3 = 0;
+                    
+                    for m = 1:length(good)
+                        k = good(m);
+                            
+                            sum1 = sum1 + force(k)*sin(alpha(k)-betas(k)+pi/2); %xforces
+                            sum2 = sum2 + force(k)*cos(alpha(k)-betas(k)+pi/2); %yforces
+                            sum3 = sum3 + force(k)*sin(alpha(k));
+                            
+                        
+                    end
+                    
+                    fe = sqrt(sum1^2+sum2^2);
+                    
+                    a = asin(-sum3/fe);
+                    
+                    particle(n).forces(badneighbours) = fe;
+                    particle(n).alphas(badneighbours) = a;
+                    bigerr(badparticle) =[];
+                    rankerror(badparticle) = [];
+                    
+                   
+
+            else
+                %now we have more than 1 unconstrained force so we're going
+                %to try to fix the forces we know from the neighbours and
+                %fit the others
+                disp('big route')
+                
+                fixedforce =[];
+                fixedbeta =[];
+                fixedalpha =[];
+                for m = 1:length(good)
+                    fixedforce = [fixedforce,particle(n).forces(good(m))];
+                    fixedalpha = [fixedalpha,particle(n).alphas(good(m))];
+                    fixedbeta = [fixedbeta, particle(n).betas(good(m))];
+                end
+                freeforce =[];
+                freebeta =[];
+                freealpha =[];
+                for m = 1:length(badneighbours)
+                    freeforce = [freeforce,particle(n).forces(badneighbours(m))];
+                    freealpha = [freealpha,particle(n).alphas(badneighbours(m))];
+                    freebeta = [freebeta, particle(n).betas(badneighbours(m))];
+%                         particle(n).alphas(m) = -particle(indN).alphas(positionNeighbour);
+%                         particle(indN).alphas(positionNeighbour);
+                end
+                    cx=px/2;cy=px/2;ix=px;iy=px;r=maskradius*px;
+                    [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
+                    c_mask=((x.^2+y.^2)<=r^2);   
+                    z = particle(n).z;
+                    q = length(freeforce);
+                    length(fixedforce);
+                    if q>length(fixedforce)
+                        func = @(par) joForceImgFixed(z, par(1:q),par(q+1:q+q), freebeta(1:q), fsigma, rm, px, verbose, fixedforce', fixedalpha', fixedbeta); %+par(2*z+1); %this is the function I want to fit (i.e. synthetic stres image), the fitting paramters are in vector par
+                    else
+                        func = @(par) joForceImgFixed(z, par(1:q),par(q+1:q+q), freebeta(1:q), fsigma, rm, px, verbose, fixedforce', fixedalpha', fixedbeta, false);
+                    end
+                        %This is the error function we are actually fitting,
+                    %that is, the distance between our fit function and the
+                    %real particle image in terms of the sum of squares of the pixelwise differnce.
+                    %Also a mask is applied to crop
+                    %out only the circular part of the particle. 
+                    
+                    err = @(par) abs(sum(sum( ( c_mask.*(template-func(par)).^2) ))); %BUG: for some reason I sometimes get imaginary results, this should not happen
+
+                    %Set up initial guesses
+                    p0 = zeros(2*q, 1);
+                    p0(1:q) = freeforce;
+                    p0(q+1:2*q) = freealpha;
+
+                    %Do the fit, will also work with other solvers
+                    %TODO: make a user defined option to select between
+                    %different solvers
+                    fitoptions = optimoptions(@lsqnonlin,'Algorithm','levenberg-marquardt','MaxIter',200,'MaxFunEvals',400,'TolFun',0.01,'Display','final-detailed');
+                    
+                    p=lsqnonlin(err,p0,[],[],fitoptions);
+
+                    %get back the result from fitting
+                    forcesfit = p(1:q);
+                    alphasfit = p(q+1:q+q);
+
+                    %resudual
+                    fitError = err(p);
+                    length(forcesfit);
+                    for m = 1:length(forcesfit)
+                        particle(n).forces(badneighbours(m))= forcesfit(m);
+                        particle(n).alphas(badneighbours(m))= alphasfit(m);
+                    end
+                    bigerr(badparticle) = [];
+                    rankerror(badparticle) = [];
+        end
+            z = particle(n).z;
+            img = fringe_pattern_original(z, particle(n).forces, particle(n).alphas, betas, fsigma, rm, px);
+             particle(n).synthImg = img;     
+                
+                rankerror = zeros(length(bigerr),1);
+            for badparticle = 1:length(bigerr)
+                    neighbours = particle(bigerr(badparticle)).neighbours;
+                    nonedge = neighbours(neighbours>0);
+                    edge = neighbours(neighbours<0);
+                    badneighbours = ismember(nonedge, id2ind(bigerr));
+                    rankerror(badparticle) = sum(badneighbours)+length(edge);
+            end
+            [rankerror,sortIdx] = sort(rankerror);
+            bigerr = bigerr(sortIdx);
+            iterate= iterate+1;
+        end
+
+if nwParams.boundaryType == "annulus"
+for l=1:length(edges)
+    n = edges(l);
+    edgeneighbours = particle(n).neighbours;
+    z = particle(n).z;
+    IDN = particle(n).id;
+    for m=1:z
+        Nindex = find(id2ind == edgeneighbours(m));
+        %if ~isempty(Nindex)
+        %if particle(Nindex).edge ==0
+            steal = find(particle(Nindex).neighbours == IDN);
+            if length(steal) ==1
+            particle(n).forces(m) = particle(Nindex).forces(steal);
+            particle(n).alphas(m) = -particle(Nindex).alphas(steal);
+            elseif length(steal) >1
+            particle(n).forces(m) = particle(Nindex).forces(steal(1));
+            particle(n).alphas(m) = -particle(Nindex).alphas(steal(1));
+            end
+%         else
+%             particle(n).forces(m) = 0;
+%             particle(n).alphas(m) = 0;
+%         
+%         %end
+%         end
+    end
+    
+    
+    img = joForceImg (z, particle(n).forces, particle(n).alphas, particle(n).betas, particle(n).fsigma, particle(n).rm, px, verbose);
+    err = abs(sum(sum( ( c_mask.*(particle(n).forceImage-img).^2) )))
+    particle(n).synthImg = img;
+    particle(n).fitError = err;
+    
+    
+end
+end
+ %%
+
+
+% %forcebalance
+% for n = 1:N
+%     error = particle(n).fitError;
+%     Nneighbours = particle(n).neighbours;
+%     if length(Nneighbours)~=length(unique(Nneighbours))
+%         %find non-unique contacts
+%         'oop'
+%     end
+%     z=particle(n).z;
+%     IDN = particle(n).id;
+%     for m=1:z
+%         
+%         indi = find(id2ind==Nneighbours(m));
+%         if n < indi
+%         f1 = particle(n).forces(m);
+%         if particle(indi).edge ~=-1
+%             steal = find(particle(indi).neighbours == IDN);
+%             if length(steal) == 1
+%             errorM = particle(indi).fitError;
+%             f2 = particle(indi).forces(steal);
+%             elseif length(steal) >1
+% 		steal = steal(1);
+% 		errorM = particle(indi).fitError;
+%             	f2 = particle(indi).forces(steal);
+%             	end
+%             favg = (f1+f2)/2;
+%             particle(indi).forces(steal) = favg;
+%             particle(n).forces(m) = favg;
+%             %contactforces = [contactforces, favg];
+%         end
+%         end
+%     end
+%     
+%     template = particle(n).forceImage;
+%     px = size(template, 1);
+%     img = joForceImg (z, particle(n).forces, particle(n).alphas, particle(n).betas, particle(n).fsigma, particle(n).rm, px, verbose);
+%     particle(n).synthImg = img;
+% end
+if nwParams.boundaryType == "annulus"
+    save([fileParams.topDir, fileParams.solvedDir,forcefiles(frame).name(1:end-4),'_update.mat'],'particle');
+end
+NN = length(particle);
+figure(1);
+bigSynthImg = zeros(size(I,1),size(I,2)); %make an empty image with the same size as the camera image
+    for n=1:NN %for all particles
+        %display(['fitting force(s) to particle ',num2str(n)]); %status indicator
+        if (particle(n).z > 0 )
+            %Add the syntetic peImage for the particle to the
+            %synthetic image of our whole packing 
+            x = floor(particle(n).x); %interger rounded x coordinate of the current particle
+            y = floor(particle(n).y); %interger rounded y coordinate of the current particle
+            %r = particle(n).r; %radius (in pixels) of the current particle
+            sImg = particle(round(n)).synthImg; %synthetic force image for the current particle
+            sx = size(sImg,1)/2; %width of the synthetic force image of the current particle
+            sy = size(sImg,2)/2; %heights of the synthetic force image of the current partice
+            bigSynthImg(round(y-sy+1):round(y+sy),round(x-sx+1):round(x+sx)) = bigSynthImg(round(y-sy+1):round(y+sy),round(x-sx+1):round(x+sx))+sImg; %Add the syntetic Force Image of the current particle to the appropriate location
+        end
+    end
+
+imshow(bigSynthImg);
+drawnow;
+imagename = strrep(imagefiles(frame).name, '.jpg','update.jpg');
+imwrite(bigSynthImg,[fileParams.topDir,fileParams.synthImgDir,imagefiles(frame).name(1:end-4),'update.jpg'])
+%%
+
+% figure;
+% histogram([particle.forces])
+% if verbose
+% figure;
+% histogram(rmoutliers(contactforces, "mean" ))
+% end
+%clear particle
+end
+%end
