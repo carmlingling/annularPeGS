@@ -37,7 +37,7 @@ ehthumbs.db
 Thumbs.db
 
 #data sources# 
-./testdata
-./testdata_newcontact
-.asv
+./testdata/*
+./testdata_newcontact/*
+*.asv
 *.pdf
