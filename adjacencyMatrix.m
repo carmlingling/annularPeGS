@@ -9,10 +9,19 @@ function out = adjacencyMatrix(fileParams, amParams, verbose)
 if not(isfolder(fullfile(fileParams.topDir,fileParams.adjacencyDir))) %make a new folder with warped images
     mkdir(fullfile(fileParams.topDir,fileParams.adjacencyDir));
 end
+if fileParams.scratch
+if not(isfolder(fullfile(fileParams.scratchDir,fileParams.adjacencyDir))) %make a new folder with warped images
+    mkdir(fullfile(fileParams.scratchDir,fileParams.adjacencyDir));
+end
+end
 
-
-files = dir(fullfile(fileParams.topDir,fileParams.solvedDir,'*update.mat')); %which files are we processing ?
-nFrames = length(files); %how many files are we processing ?
+clf()
+if fileParams.scratch
+    files = dir(fullfile(fileParams.scratchDir,fileParams.solvedDir,'*update.mat')); %which files are we processing ?
+else
+    files = dir(fullfile(fileParams.topDir,fileParams.solvedDir,'*update.mat')); %which files are we processing ?
+end
+    nFrames = length(files); %how many files are we processing ?
 if nFrames ==0
     error(['wrong spot:',fullfile(fileParams.topDir,fileParams.solvedDir,'*update.mat'), '--check path']);
 
@@ -28,7 +37,7 @@ amParams = setupParams(amParams);
 %% CREATING INDIVIDUAL adjacency lists
 
 if amParams.go==true
-    for cycle = 189:nFrames %loop over these cycles
+    for cycle = 1:nFrames %loop over these cycles
 
         clearvars particle;
         clearvars contact;
@@ -90,6 +99,7 @@ if amParams.go==true
                             contactpos(n).cx(m) = particle(n).r*cos(particle(n).betas(m));
                             contactpos(n).cy(m) = particle(n).r*sin(particle(n).betas(m));
                             contactpos(n).forces(m) = abs(forces(m));
+                            contactpos(n).fitError(m) = particle(n).fitError;
                         end
                     end
                 end
@@ -109,9 +119,13 @@ if amParams.go==true
 
         list = [ones(length(row),1).*frameid,row , col , T(ind) , N(ind)];
         savename = strrep(files(cycle).name, 'solved_update.mat', 'Adjacency.txt');
-        writematrix(list, fullfile(fileParams.topDir, fileParams.adjacencyDir,savename) ); %save an adjacency list for the given frame 
+        if fileParams.scratch
+            writematrix(list, fullfile(fileParams.scratchDir, fileParams.adjacencyDir,savename) ); %save an adjacency list for the given frame 
         %format [frameid, id1, id2, tangential force, normal force]
-
+        else
+            writematrix(list, fullfile(fileParams.topDir, fileParams.adjacencyDir,savename) ); %save an adjacency list for the given frame 
+        %format [frameid, id1, id2, tangential force, normal force]
+        end
 
 
         if verbose
@@ -136,8 +150,21 @@ if amParams.go==true
             %             %the contact point
                 end
             end
+            
+            figure(2);
+            edges = 10.^(-5:0.1:2);
+            [N,edges] = histcounts(f,edges,'Normalization','countdensity');
+            
+            g = histogram('BinEdges',edges,'BinCounts',N);
+            set(gca, "Xscale", "log")
 
-            drawnow;
+
+            figure(3);
+            edges = 10.^(-1:0.1:100);
+            [N,edges] = histcounts([contactpos.fitError],edges,'Normalization','countdensity');
+            
+            g = histogram('BinEdges',edges,'BinCounts',N);
+            set(gca, "Xscale", "log")
             hold off
         end
 
@@ -145,9 +172,13 @@ if amParams.go==true
     end
 end
 %% Compile all of the adjacency lists into a master list
-AdjFiles = dir(fullfile(fileParams.topDir, fileParams.adjacencyDir, '*_Adjacency.txt'));
-nFrames = length(AdjFiles);
-testData = load(fullfile(AdjFiles(nFrames-1).folder, AdjFiles(nFrames -1).name));
+if fileParams.scratch
+    AdjFiles = dir(fullfile(fileParams.scratchDir, fileParams.adjacencyDir, '*_Adjacency.txt'));
+else
+    AdjFiles = dir(fullfile(fileParams.topDir, fileParams.adjacencyDir, '*_Adjacency.txt'));
+end
+nFrames = length(AdjFiles)
+testData = load(fullfile(AdjFiles(nFrames).folder, AdjFiles(nFrames).name));
 
 skipamount = length(testData)+amParams.skipvalue;
 Adj_list = nan(nFrames*skipamount, 5);

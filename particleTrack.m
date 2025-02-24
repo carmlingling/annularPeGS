@@ -29,8 +29,11 @@ if ~isfield(ptParams, 'skipValue')
 end
 
 %% File Management
-
-particledirectory = fullfile(fileParams.topDir, fileParams.particleDir);
+if fileParams.scratch
+    particledirectory = fullfile(fileParams.scratchDir, fileParams.particleDir);
+else
+    particledirectory = fullfile(fileParams.topDir, fileParams.particleDir);
+end
 datafiles = dir(fullfile(particledirectory,'*centers.txt')); %output from particleDetect
 nFrames = size(datafiles,1);    %how many files
 
@@ -44,7 +47,7 @@ par_ref = load(fullfile(datafiles(1).folder, datafiles(1).name)); %load the firs
 if isfield(fileParams, 'frameIdInd')
     frameId = str2double(datafiles(1).name(fileParams.frameIdInd:fileParams.frameIdInd+3));
 else
-    frameId = 1;
+    frameId = 1
 end
 
 skipamount = length(par_ref)+ptParams.skipValue; %I chose this as a result of my system size, could and should be altered based on your specific system and variability in finding particles
@@ -73,24 +76,12 @@ for i = 1:numel(datafiles)-1
     idx=find(tracked==0);
     
     for m = 1:length(idx)
+        
         tracked(idx(m)) = biggest+m;
     end
     
     par_curr = cat(2, tracked, par_curr);
     
-    %draw motion per frame
-%     if verbose
-%         figure(1);
-%         viscircles(par_ref(:,2:3), par_ref(:,4));
-%         hold on;
-%         viscircles(par_curr(:,2:3), par_curr(:,4), 'Color', 'b');
-%         for z = 1:size(par_curr, 1)
-%             text(par_curr(z, 2), par_curr(z, 3), num2str(tracked(z)), 'Color', 'white');
-%         end
-%         axis('equal')
-%         drawnow;
-%         hold off
-%     end
 
     
     
@@ -113,10 +104,27 @@ for i = 1:numel(datafiles)-1
 end
 
 centers(any(isnan(centers),2),:)=[]; %remove spacers
-writematrix(centers, fullfile(fileParams.topDir,'particle_positions.txt'))
+writematrix(centers, fullfile(fileParams.topDir,'particle_positions.txt'));
 
+%centers = readmatrix(fullfile(fileParams.topDir, 'particle_positions.txt'));
+[theta,r] = cart2pol(centers(:,3)-ptParams.cen(1),centers(:,4)-ptParams.cen(2));
 
+d = -6.5*r.^2/(200*(915+6.5)); %6.5 is the thickness of the particles in mm, 925 is distance between particles and camera lens in mm
 
+s1 = d+r;
+[ut,vt] = pol2cart(theta,s1);
+ut = ut + ptParams.cen(1);
+vt = vt + ptParams.cen(2);
+
+ifcn = @(c) [ut(:) vt(:)];
+tform = geometricTransform2d(ifcn);
+[uv] = transformPointsInverse(tform, [0,0]); %particle original coordinates
+u = uv(:,1)-400;
+v = uv(:,2)-400;
+centers_original = centers;
+centers_original(:,3) = u;
+centers_original(:,4) = v;
+writematrix(centers_original, fullfile(fileParams.topDir,'original_particle_positions.txt'))
 %% final documentation
 
 if verbose %visualize particle tracks
@@ -126,8 +134,8 @@ if verbose %visualize particle tracks
     imshow(ref)
     hold on;
     
-    scatter(centers(:,3), centers(:,4),30, centers(:,1), 'filled');
-    colormap(parula(size(centers,1)))
+    scatter(centers(:,3), centers(:,4),20, centers(:,1), 'filled', 'MarkerFaceAlpha',0.5);
+    colormap(flipud(parula(size(centers,1))))
     axis 'equal'
     savefig(fullfile(fileParams.topDir, fileParams.particleDir, 'trajectories')) 
 end

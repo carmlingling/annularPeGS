@@ -84,8 +84,9 @@ end
 % these are basic steps to run PeGS on the sample images
 
 %% module to detect contacts between particles. Set parameters in cdParams structure
-%preprocess(fileParams, pdParams, verbose);
-particleDetect(fileParams, pdParams, verbose);
+preprocess(fileParams, pdParams, verbose);
+
+particleDetect(fileParams, pdParams, verbose)
 
 
 %% particleTrack is optional. Comment out if you do not want the particles tracked from frame to frame
@@ -93,26 +94,26 @@ particleDetect(fileParams, pdParams, verbose);
 % same id, set parameters with ptParams
 
 
-%particleTrack(fileParams, ptParams, verbose);
+particleTrack(fileParams, ptParams, verbose);
 
 
 %% module to detect contacts between particles. Set parameters in cdParams structure
 
 
-%contactDetect(fileParams, cdParams, verbose);
+contactDetect(fileParams, cdParams, verbose);
 
 %% module to solve the forces on the particles. Set parameters in dsParams structure
 
 
-%diskSolve(fileParams, dsParams, verbose);
+diskSolve(fileParams, dsParams, verbose);
 
 %% newtonize
 
-%newtonize(fileParams, nwParams, verbose);
+newtonize(fileParams, nwParams, verbose);
 %% module create an adjacency matrix for all images in the data file. Set parameters in amParams structure
 
 %
-%adjacencyMatrix(fileParams, amParams, verbose);
+adjacencyMatrix(fileParams, amParams, verbose);
 
 return
 

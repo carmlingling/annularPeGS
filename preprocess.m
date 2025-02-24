@@ -33,9 +33,12 @@ if pdParams.boundaryType == "annulus"
         CC=sqrt((nrows-pdParams.cen(2)).^2+(ncols-pdParams.cen(1)).^2);
           
         Q=(CC>=pdParams.rad(1)) & (CC<=pdParams.rad(2));
+        Qgreen = (CC>=pdParams.rad(1)+20) & (CC<=pdParams.rad(2));
         mask = Q;
-        mask(:,:,2) = Q;
+        mask(:,:,2) = Qgreen;
         %mask(:,:,3) = 0;
+        
+        G = fspecial('gaussian', 3*pdParams.sigma+1, pdParams.sigma);
     for frame = 1:nFrames
     %frame = frame+130
    
@@ -44,6 +47,19 @@ if pdParams.boundaryType == "annulus"
         disp(frame)
         im1=imread(fullfile(images(frame).folder,images(frame).name));
         im1 = im1(:,:,1:2);
+        J = roifilt2(G, im1(:,:,1), Q);
+        if verbose
+            figure(2)
+            imshow(im1(:,:,2))
+            viscircles(pdParams.cen, pdParams.rad(1))
+            viscircles(pdParams.cen, pdParams.rad(2))
+            imshowpair(im1(:,:,1), J, 'montage')
+            drawnow
+            hold off
+        end
+        im1(:,:,2) = bsxfun(@minus, im1(:,:,2),im1(:,:,1)*0.2);
+        im1(:,:,1) = bsxfun(@minus, im1(:,:,1),1*J);
+        
         im1 = immultiply(im1, mask);
         
         %'trimmed'
@@ -62,7 +78,7 @@ if pdParams.boundaryType == "annulus"
         yt = yi - nrows/2;
         [theta,r] = cart2pol(xt,yt);
 
-        d = -6.5*r.^2/(200*(925+6.5)); %6.5 is the thickness of the particles in mm, 925 is distance between particles and camera lens in mm
+        d = -6.5*r.^2/(200*(915+6.5)); %6.5 is the thickness of the particles in mm, 925 is distance between particles and camera lens in mm
         %rmax = max(r(:));
         s1 = d+r;
         [ut,vt] = pol2cart(theta,s1);

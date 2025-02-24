@@ -75,8 +75,17 @@ function out = diskSolve(fileParams, dsParams, verbose)
 if ~exist(fullfile(fileParams.topDir, fileParams.solvedDir) , 'dir')
     mkdir(fullfile(fileParams.topDir, fileParams.solvedDir))
 end
-
-
+if ~exist(fullfile(fileParams.topDir, fileParams.synthImgDir) , 'dir')
+    mkdir(fullfile(fileParams.topDir, fileParams.synthImgDir))
+end
+if fileParams.scratch
+    if ~exist(fullfile(fileParams.scratchDir, fileParams.solvedDir) , 'dir')
+        mkdir(fullfile(fileParams.scratchDir, fileParams.solvedDir))
+    end
+    if ~exist(fullfile(fileParams.scratchDir, fileParams.synthImgDir) , 'dir')
+        mkdir(fullfile(fileParams.scratchDir, fileParams.synthImgDir))
+    end
+end
 if verbose
     disp('starting disksolve() to find all particle centroids and save results in particleDir')
 end
@@ -88,7 +97,12 @@ dsParams = setupParams(dsParams, verbose);
 
 %% Load particle data structure
 % directory: particle data location
-particledirectory = dir( fullfile(fileParams.topDir, fileParams.contactDir,'*_contacts.mat'))  ;
+name = strrep(fileParams.imgReg, '.jpg', '_contacts.mat');
+if fileParams.scratch
+    particledirectory = dir( fullfile(fileParams.scratchDir, fileParams.contactDir,name))  ;
+else
+particledirectory = dir( fullfile(fileParams.topDir, fileParams.contactDir,name))  ;
+end
 nFrames = length(particledirectory);
 
 
@@ -113,8 +127,11 @@ for frame = 1 : nFrames
 
     %% Save output
     savename = strrep(particledirectory(frame).name , '_contacts','_solved');
-    save(fullfile(fileParams.topDir, fileParams.solvedDir , savename), 'particle')
-
+    if fileParams.scratch
+       save(fullfile(fileParams.scratchDir, fileParams.solvedDir , savename), 'particle') 
+    else
+        save(fullfile(fileParams.topDir, fileParams.solvedDir , savename), 'particle')
+    end
     h3 = figure(1);
     hAx1 = subplot(1,1,1,'Parent', h3);
     NN = length(particle);
@@ -141,9 +158,11 @@ for frame = 1 : nFrames
    hold off;
     drawnow;
     savename = strrep(particledirectory(frame).name , '_contacts.mat','_Synth.jpg');
-    
+    if fileParams.scratch
+        imwrite(bigSynthImg, fullfile(fileParams.scratchDir, fileParams.synthImgDir, savename), "jpg"); %save synthetic image
+    else
     imwrite(bigSynthImg, fullfile(fileParams.topDir, fileParams.synthImgDir, savename), "jpg"); %save synthetic image
-
+    end
 end
 
 %% Create parameter list and module wrap up

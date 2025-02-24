@@ -22,18 +22,24 @@ cdParams = setupParams(cdParams);
 %% directory buisness and importing files
 warning('off','signal:findpeaks:largeMinPeakHeight')
 global particleNumber1 particleNumber2
-particleNumber1 = 222;
-particleNumber2 = 1060;
-cdParams.roach = false;
+particleNumber1 = 1327;
+particleNumber2 = 1388;
+
 %% file housekeeping
+if fileParams.scratch
+    if not(isfolder(append(fileParams.scratchDir,fileParams.contactDir))) %make a new folder with particle centers
+        mkdir(append(fileParams.scratchDir,fileParams.contactDir));
+    end
+end
 if not(isfolder(append(fileParams.topDir,fileParams.contactDir))) %make a new folder with particle centers
-        mkdir(append(fileParams.topDir,fileParams.contactDir));
+    mkdir(append(fileParams.topDir,fileParams.contactDir));
 end
 
 
 
+
 %disp([p.topDir, 'warpedimg/', p.imgReg]) %print the filename
-files = dir([ fileParams.topDir,fileParams.warpedImgDir, '*.tif']); %images
+files = dir(fullfile(fileParams.topDir,fileParams.warpedImgDir, [fileParams.imgReg(1:end-4),'warped.tif'])); %images
 
 centersfile = dir([fileParams.topDir, 'particle_positions.txt']);
 centersdata = readmatrix(fullfile(centersfile.folder, centersfile.name));
@@ -75,11 +81,13 @@ for imgnumb = 1:size(files,1)
            drawnow;
         end
         
-        Gimg=imsubtract(Gimg,Rimg./cdParams.rednormal);
+        %Gimg=imsubtract(Gimg,(Rimg./cdParams.rednormal));
    
-        G = fspecial('gaussian', 3*cdParams.sigma+1, cdParams.sigma);
-        yb = imfilter(imcomplement(Rimg), G, 'replicate');
-        Gimg = bsxfun(@minus, Gimg,yb*.09);
+%         G = fspecial('gaussian', 3*cdParams.sigma+1, cdParams.sigma);
+%         yb = imfilter(imcomplement(Rimg), G, 'replicate');
+        %figure(3)
+        %imshowpair(Gimg, G, 'montage')
+        %Gimg = bsxfun(@minus, Gimg,yb*.12);
 
         Gimg= im2double(Gimg);
         Gimg = Gimg.*(Gimg > 0);
@@ -100,6 +108,9 @@ for imgnumb = 1:size(files,1)
         
         imshow(Gimg)
         title('Gimg')
+        figure(2);
+        imshow(Gimgfine)
+        title('Gimgfine')
 
     end
     
@@ -115,7 +126,7 @@ for imgnumb = 1:size(files,1)
 
         N = size(pData,1);
 
-        particle(1:N) = struct('id',0,'x',0,'y',0,'r',0,'rm',0,'color','','fsigma',0,'z',0,'f',0,'g2',0,'forces',[],'betas',[],'alphas',[],'neighbours',[],'contactG2s',[],'forceImage',[],  'edge', 0);
+        particle(1:N) = struct('id',0,'x',0,'y',0,'r',0,'rm',0,'color','','fsigma',0,'z',0,'f',0,'g2',0,'forces',[],'fitError',[],'betas',[],'alphas',[],'neighbours',[],'contactG2s',[],'forceImage',[],  'edge', 0);
         for n = 1:N %Bookkeeping from centers-tracked
             particle(n).id= pData(n,2);
             particle(n).x = pData(n,3);
@@ -127,6 +138,7 @@ for imgnumb = 1:size(files,1)
         end
 
         if cdParams.figverbose
+            figure(2)
             imshow(Gimgfine);
             %viscircles([pData(:,3),pData(:,4)],pData(:,5));
             hold on;
@@ -198,11 +210,11 @@ for imgnumb = 1:size(files,1)
             r = rpairs(l,:);
 
                         
-            if cdParams.figverbose
-            plot(x, y, 'LineWidth', 2)
-            title('neighbour candidates')
-            hold off
-            end
+            % if cdParams.figverbose
+            % plot(x, y, 'LineWidth', 2)
+            % title('neighbour candidates')
+            % hold off
+            % end
             
             [contactG2p, contactIp] = contactspot(x,y,r, cdParams.CR, Gimg, maskCR);
 
@@ -227,8 +239,8 @@ for imgnumb = 1:size(files,1)
             %find peaks in intensity for each particle, record the value of
             %the peak and the angular location relative to the x axis of
             %each particle
-            [~, locs] = peakfinder(x(1), y(1), r(1), f1(l), Gimgfine, cdParams.minpeakheight, cdParams.minpeakprominence, cdParams.minpeakprom_main, cdParams.padding, cdParams.roach);
-            [~, locs2] = peakfinder(x(2), y(2), r(2), f2(l), Gimgfine, cdParams.minpeakheight, cdParams.minpeakprominence, cdParams.minpeakprom_main, cdParams.padding, cdParams.roach);
+            [~, locs] = peakfinder(x(1), y(1), r(1)-2, f1(l), Gimgfine, cdParams.minpeakheight, cdParams.minpeakprominence, cdParams.minpeakprom_main, cdParams.padding, cdParams.roach);
+            [~, locs2] = peakfinder(x(2), y(2), r(2)-2, f2(l), Gimgfine, cdParams.minpeakheight, cdParams.minpeakprominence, cdParams.minpeakprom_main, cdParams.padding, cdParams.roach);
     
             %compare the locations to whatever the nominal angle is (center
             %to center)
@@ -246,7 +258,10 @@ for imgnumb = 1:size(files,1)
 %             if f1(l) == particleNumber1 && f2(l) == particleNumber2
 %                 error()
 %             end
-            if ~isempty(angle(angle==1)) && ~isempty(angle2(angle2==1))
+            %[contactG2p, contactIp] = contactspot(x,y,r-3, cdParams.CR, Gimgfine, maskCR);
+            %if(contactG2p(1) > 1 && contactG2p(2) > 1)
+
+            if(~isempty(angle(angle==1)) && ~isempty(angle2(angle2==1)))
 
                 particle(f1(l)).z= particle(f1(l)).z +1; %increase coordination number
                 particle(f1(l)).contactG2s(particle(f1(l)).z)=contactG2p(1); %remember the g2 value of the current contact area
@@ -260,8 +275,32 @@ for imgnumb = 1:size(files,1)
                 particle(f2(l)).color(particle(f2(l)).z)='y';
                 particle(f2(l)).neighbours(particle(f2(l)).z) = particle(f1(l)).id; %particle m is now noted as a neigbour in the particle l datastructure
                 particle(f2(l)).betas(particle(f2(l)).z) = nominalAngle2;
-            
-            
+%             elseif ~isempty(angle(angle ==1)) && contactG2p(2) > cdParams.contactG2Threshold
+%                 particle(f1(l)).z= particle(f1(l)).z +1; %increase coordination number
+%                 particle(f1(l)).contactG2s(particle(f1(l)).z)=contactG2p(1); %remember the g2 value of the current contact area
+%                 particle(f1(l)).contactIs(particle(f1(l)).z)=contactIp(1);
+%                 particle(f1(l)).color(particle(f1(l)).z)='g';
+%                 particle(f1(l)).neighbours(particle(f1(l)).z) = particle(f2(l)).id; %particle m is now noted as a neigbour in the particle l datastructure
+%                 particle(f1(l)).betas(particle(f1(l)).z) = nominalAngle; %the contact angle to particle m is now noted in the particle l datastructure
+%                 particle(f2(l)).z= particle(f2(l)).z +1; %increase coordination number
+%                 particle(f2(l)).contactG2s(particle(f2(l)).z)=contactG2p(2); %remember the g2 value of the current contact area
+%                 particle(f2(l)).contactIs(particle(f2(l)).z)=contactIp(2);
+%                 particle(f2(l)).color(particle(f2(l)).z)='g';
+%                 particle(f2(l)).neighbours(particle(f2(l)).z) = particle(f1(l)).id; %particle m is now noted as a neigbour in the particle l datastructure
+%                 particle(f2(l)).betas(particle(f2(l)).z) = nominalAngle2;
+%             elseif contactG2p(1) > cdParams.contactG2Threshold && ~isempty(angle2(angle2==1))
+%                 particle(f1(l)).z= particle(f1(l)).z +1; %increase coordination number
+%                 particle(f1(l)).contactG2s(particle(f1(l)).z)=contactG2p(1); %remember the g2 value of the current contact area
+%                 particle(f1(l)).contactIs(particle(f1(l)).z)=contactIp(1);
+%                 particle(f1(l)).color(particle(f1(l)).z)='y';
+%                 particle(f1(l)).neighbours(particle(f1(l)).z) = particle(f2(l)).id; %particle m is now noted as a neigbour in the particle l datastructure
+%                 particle(f1(l)).betas(particle(f1(l)).z) = nominalAngle; %the contact angle to particle m is now noted in the particle l datastructure
+%                 particle(f2(l)).z= particle(f2(l)).z +1; %increase coordination number
+%                 particle(f2(l)).contactG2s(particle(f2(l)).z)=contactG2p(2); %remember the g2 value of the current contact area
+%                 particle(f2(l)).contactIs(particle(f2(l)).z)=contactIp(2);
+%                 particle(f2(l)).color(particle(f2(l)).z)='y';
+%                 particle(f2(l)).neighbours(particle(f2(l)).z) = particle(f1(l)).id; %particle m is now noted as a neigbour in the particle l datastructure
+%                 particle(f2(l)).betas(particle(f2(l)).z) = nominalAngle2;
             end
         
         
@@ -328,7 +367,7 @@ for imgnumb = 1:size(files,1)
 if cdParams.figverbose 
     h3 = figure(20);
     hAx1 = subplot(1,1,1,'Parent', h3);
-    imshow(Gimg, 'Parent', hAx1);
+    imshow(Gimgfine, 'Parent', hAx1);
     hold (hAx1, 'on');
     for n = 1:length(particle)
         particle(n).id;
@@ -341,11 +380,12 @@ if cdParams.figverbose
                 lineY(1)=particle(n).y;
                 lineX(2) = lineX(1) + particle(n).r * cos(particle(n).betas(m));
                 lineY(2) = lineY(1) + particle(n).r * sin(particle(n).betas(m));
-                viscircles([lineX(1), lineY(1)], particle(n).r, 'color', 'blue');
-                viscircles([lineX(1) + (particle(n).r-cdParams.CR) * cos(particle(n).betas(m)) lineY(1) + (particle(n).r-cdParams.CR) * sin(particle(n).betas(m))], cdParams.CR, 'color', 'white');
+                
+                %viscircles([lineX(1) + (particle(n).r-cdParams.CR) * cos(particle(n).betas(m)) lineY(1) + (particle(n).r-cdParams.CR) * sin(particle(n).betas(m))], cdParams.CR, 'color', 'white');
                 plot(hAx1, lineX, lineY,particle(n).color(m),'LineWidth',2);
             end
         end
+        viscircles([particle(n).x, particle(n).y], particle(n).r, 'color', 'blue', 'LineWidth',1);
         %text(hAx1, particle(n).x, particle(n).y, num2str(particle(n).id), 'Color', 'y')
     end
     drawnow;
@@ -361,10 +401,12 @@ end
 
 %save updated particle contact info
 savename = strrep(files(imgnumb).name, 'warped.tif', '_contacts.mat');
-save(fullfile(fileParams.topDir, fileParams.contactDir, savename),'particle')
-
-end %loop imgnumb
-
+if fileParams.scratchDir
+    save(fullfile(fileParams.scratchDir, fileParams.contactDir, savename),'particle')
+else
+    save(fullfile(fileParams.topDir, fileParams.contactDir, savename),'particle')
+end 
+end%loop imgnumb
 %% save parameters 
 
 fields = fieldnames(cdParams);

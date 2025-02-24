@@ -1,0 +1,13 @@
+topDir	./testdata/
+imgReg	*.jpg
+imgDir	images/
+warpedImgDir	warpedimg/
+particleDir	particles/
+contactDir	contacts/
+solvedDir	solved/
+synthImgDir	synthimg/
+adjacencyDir	adjacency/
+frameIdInd	15
+skipvalue	200
+skipValue	20
+time	22-Oct-2024 12:41:31

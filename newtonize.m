@@ -5,14 +5,18 @@ function newtonize(fileParams, nwParams, verbose)
 
 
 
-filename = '*solved.mat';
-imname = '*Synth.jpg';
-imagefiles = dir([fileParams.topDir,fileParams.synthImgDir, imname]);
-%directory = [directory,'warpedimg/'];
-forcefiles = dir([fileParams.topDir,fileParams.solvedDir, filename]);
+filename = [fileParams.imgReg(1:end-4),'_solved.mat'];
+imname = [fileParams.imgReg(1:end-4),'_Synth.jpg'];
+if fileParams.scratch
+    imagefiles = dir([fileParams.scratchDir,fileParams.synthImgDir, imname]);
+    forcefiles = dir([fileParams.scratchDir,fileParams.solvedDir, filename]);
+else
+    imagefiles = dir([fileParams.topDir,fileParams.synthImgDir, imname]);
 
+    forcefiles = dir([fileParams.topDir,fileParams.solvedDir, filename]);
 
-fiterrorcutoff = 1850;
+end
+fiterrorcutoff = 200;
 
 maskradius = 0.96/2;
 troubleid = [];
@@ -45,24 +49,24 @@ for frame=1:length(forcefiles)
     if nwParams.boundaryType == "annulus"
     othererrors = zeros(N,1);
     
-    for n=1:N
-       
-        if ~isempty(particle(n).fitError)
-            
-        im1 = particle(n).synthImg;
-        im2 = particle(n).forceImage;
-        if size(im1, 1) ~= size(im2, 1)
-            im1 = im1(1:end-1, 1:end-1);
-        end
-
-        residual = imsubtract(im1, im2);
-        residual = abs(residual);
-        int = sum(sum(residual));
-        othererrors(n) = int;
-        particle(n).fitError=int;
-        end
-    end
-    bigerr = find(othererrors>fiterrorcutoff); %gives index
+%     for n=1:N
+%        
+%         if ~isempty(particle(n).fitError)
+%             
+%         im1 = particle(n).synthImg;
+%         im2 = particle(n).forceImage;
+%         if size(im1, 1) ~= size(im2, 1)
+%             im1 = im1(1:end-1, 1:end-1);
+%         end
+% 
+%         residual = imsubtract(im1, im2);
+%         residual = abs(residual);
+%         int = sum(sum(residual));
+%         othererrors(n) = int;
+%         particle(n).fitError=int;
+%         end
+%     end
+    bigerr = find(errors>fiterrorcutoff); %gives index
     
    
     end
@@ -80,7 +84,7 @@ for frame=1:length(forcefiles)
 
 
     
-    I = imread([imagefiles(frame).folder,'/', imagefiles(frame).name]);
+    I = imread(fullfile(imagefiles(frame).folder,imagefiles(frame).name));
     
     imshow(I, 'Parent', hAx1);
     x = [particle.x];
@@ -259,10 +263,10 @@ bigerr = bigerr(sortIdx);
             %this next bit is extremely messy. Please proceed with caution
             %and kind wishes
             neighbours = particle(n).neighbours;
-                if rank>0
+            if rank>0
                 nonedge=neighbours((neighbours>0));
                 badneighbours = find(ismember(nonedge, id2ind(bigerr)));
-                
+
                 bad2 = find(neighbours < 0);
                 if ~isempty(badneighbours) && ~isempty(bad2)
                     badneighbours = [badneighbours,bad2];
@@ -273,23 +277,24 @@ bigerr = bigerr(sortIdx);
                 end
                 good = 1:length(neighbours);
                 good =good(setdiff(1:end,badneighbours));
-               
-                else
-                    good = 1:length(neighbours);
+
+            else
+                good = 1:length(neighbours);
+            end
+            for m=1:length(good) %loop over the neighbours,
+                %now find the force from the neighbour particles' list
+                %of forces
+                k = good(m);
+                indexN = find(id2ind==neighbours(k)) %index of the neighbour that we will steal from
+                particle(n).neighbours
+                positionNeighbour = find(particle(indexN).neighbours==IDN)
+                if length(positionNeighbour)>1
+                    positionNeighbour = positionNeighbour(1);
                 end
-                for m=1:length(good) %loop over the neighbours, 
-                    %now find the force from the neighbour particles' list
-                    %of forces
-                    k = good(m);
-                    indexN = find(id2ind==neighbours(k));
-                    positionNeighbour = find(particle(indexN).neighbours==IDN);
-                    if length(positionNeighbour)>1
-                        positionNeighbour = positionNeighbour(1);
-                    end
-                    particle(n).forces(k) = particle(indexN).forces(positionNeighbour);
-                    particle(n).alphas(k) = particle(indexN).alphas(positionNeighbour);
-                    
-                end
+                particle(n).forces(k) = particle(indexN).forces(positionNeighbour);
+                particle(n).alphas(k) = particle(indexN).alphas(positionNeighbour);
+
+            end
                 
                 force = particle(n).forces;
                 alpha =particle(n).alphas;
@@ -496,7 +501,12 @@ end
 %     particle(n).synthImg = img;
 % end
 if nwParams.boundaryType == "annulus"
+    if fileParams.scratch
+        save([fileParams.scratchDir, fileParams.solvedDir,forcefiles(frame).name(1:end-4),'_update.mat'],'particle');
+    else
     save([fileParams.topDir, fileParams.solvedDir,forcefiles(frame).name(1:end-4),'_update.mat'],'particle');
+
+    end
 end
 NN = length(particle);
 figure(1);
@@ -519,7 +529,11 @@ bigSynthImg = zeros(size(I,1),size(I,2)); %make an empty image with the same siz
 imshow(bigSynthImg);
 drawnow;
 imagename = strrep(imagefiles(frame).name, '.jpg','update.jpg');
+if fileParams.scratch
+    imwrite(bigSynthImg,[fileParams.scratchDir,fileParams.synthImgDir,imagefiles(frame).name(1:end-4),'update.jpg'])
+else
 imwrite(bigSynthImg,[fileParams.topDir,fileParams.synthImgDir,imagefiles(frame).name(1:end-4),'update.jpg'])
+end
 %%
 
 % figure;

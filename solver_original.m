@@ -18,7 +18,7 @@ N = length(particle);
             rm = particle(n).rm;
             template = particle(n).forceImage;
             template = imresize(template,scaling);
-            px = size(template,1); 
+            px = int64(size(template,1)); 
             
             % Initial force and alpha values
             for i=1:z

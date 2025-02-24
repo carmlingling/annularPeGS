@@ -1,0 +1,13 @@
+topDir	./testdata_newcontact/
+imgReg	*.jpg
+imgDir	images/
+warpedImgDir	warpedimg/
+particleDir	particles/
+contactDir	contacts/
+solvedDir	solved/
+synthImgDir	synthimg/
+adjacencyDir	adjacency/
+frameIdInd	15
+skipvalue	200
+skipValue	20
+time	01-Nov-2024 16:43:29

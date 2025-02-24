@@ -1,0 +1,19 @@
+topDir	./testdata_newcontact/
+imgReg	*.jpg
+imgDir	images/
+warpedImgDir	warpedimg/
+particleDir	particles/
+contactDir	contacts/
+solvedDir	solved/
+synthImgDir	synthimg/
+adjacencyDir	adjacency/
+frameIdInd	15
+algorithm	levenberg-marquardt
+maxIterations	200
+maxFunctionEvaluations	400
+functionTolerance	0.01
+scaling	0.5
+maskradius	0.96
+original	1
+vectorise	0
+time	01-Nov-2024 16:44:46

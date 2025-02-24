@@ -1,0 +1,31 @@
+topDir	./testdata_newcontact/							
+imgReg	*.jpg							
+imgDir	images/							
+warpedImgDir	warpedimg/							
+particleDir	particles/							
+contactDir	contacts/							
+solvedDir	solved/							
+synthImgDir	synthimg/							
+adjacencyDir	adjacency/							
+frameIdInd	15							
+radiusRange	40	60						
+metersperpixel	1.59744408945687e-05							
+fsigma	141							
+g2cal	145							
+dtol	30							
+contactG2Threshold	0.5							
+CR	10							
+boundaryType	annulus							
+rednormal	2							
+minpeakheight	0.1							
+minpeakprominence	0.06							
+minpeakprom_main	0.06							
+padding	1							
+roach	0							
+imadjust_limits	0.1	0.5						
+fineimadjust_limits	0.0588235294117647	0.156862745098039						
+sigma	20							
+polarizerstrip	2900	220	2950	220	3560	6099	3593	6100
+calibrate	0							
+figverbose	0							
+time	01-Nov-2024 16:44:02							
