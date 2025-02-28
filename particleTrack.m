@@ -35,7 +35,7 @@ else
     particledirectory = fullfile(fileParams.topDir, fileParams.particleDir);
 end
 datafiles = dir(fullfile(particledirectory,'*centers.txt')); %output from particleDetect
-nFrames = size(datafiles,1);    %how many files
+nFrames = size(datafiles,1)    %how many files
 
 %% Initializing data array
 

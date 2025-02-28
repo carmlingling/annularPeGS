@@ -1,8 +1,8 @@
 %batch scripting
 
 %%file parameters
-fileParams.topDir = '/eno/cllee3/DATA/250218/run2/'; % where the images are stored
-fileParams.imgReg = '250218run2_466Hz_stickslip_Img*.jpg'; %image format and regex
+fileParams.topDir = '/eno/cllee3/DATA/250225/run3/'; % where the images are stored
+fileParams.imgReg = '*.jpg'; %image format and regex
 fileParams.imgDir = 'images/';
 fileParams.warpedImgDir = 'warpedimg/';
 fileParams.particleDir = 'particles/';
@@ -10,7 +10,7 @@ fileParams.contactDir = 'contacts/';
 fileParams.solvedDir = 'solved/';
 fileParams.synthImgDir = 'synthimg/';
 fileParams.adjacencyDir = 'adjacency/';
-fileParams.frameIdInd = 31;
+fileParams.frameIdInd = 36;
 fileParams.scratch = true;
 fileParams.scratchDir = strrep(fileParams.topDir, '/eno/', '/eno/SCRATCH/')
 %% verbose

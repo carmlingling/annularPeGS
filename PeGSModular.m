@@ -84,9 +84,9 @@ end
 % these are basic steps to run PeGS on the sample images
 
 %% module to detect contacts between particles. Set parameters in cdParams structure
-preprocess(fileParams, pdParams, verbose);
+%preprocess(fileParams, pdParams, verbose);
 
-particleDetect(fileParams, pdParams, verbose)
+%particleDetect(fileParams, pdParams, verbose)
 
 
 %% particleTrack is optional. Comment out if you do not want the particles tracked from frame to frame
